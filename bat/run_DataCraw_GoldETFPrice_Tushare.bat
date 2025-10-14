@@ -1,0 +1,1 @@
+start /B pythonw.exe "C:\Users\Administrator\Desktop\Gold\bin\run_DataCraw_GoldETFPrice_TuShare.py" > "C:\Users\Administrator\Desktop\Gold\nohup.DataCraw_GoldETFPrice_TuShare" 2> "C:\Users\Administrator\Desktop\Gold\nohup.DataCraw_GoldETFPrice_TuShare_Error"

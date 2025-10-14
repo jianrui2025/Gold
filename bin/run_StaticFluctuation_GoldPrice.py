@@ -1,0 +1,3 @@
+
+static = StaticFluctuation()
+static.run()

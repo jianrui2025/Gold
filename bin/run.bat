@@ -1,0 +1,1 @@
+Start-Process python.exe -ArgumentList ".\bin\run_DataCraw_GoldETFPrice_TuShare.py" -WindowStyle Hidden -RedirectStandardOutput nohup.DataCraw_GoldETFPrice_TuShare -RedirectStandardError nohup.DataCraw_GoldETFPrice_TuShare
