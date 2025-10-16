@@ -102,9 +102,9 @@ class StrategyBase():
                 # 上午开市时间段 和 中午休市时间段
                 elif currentTimestamp < morningTimestamp[0] or morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
                     if currentTimestamp < morningTimestamp[0]:
+                        self.before_strategy()
                         log.info(":休眠到开市！")
                         time.sleep(morningTimestamp[0] - currentTimestamp)
-                        self.before_strategy()
 
                     elif morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
                         log.info(":中午休市中,休眠到下午开市")

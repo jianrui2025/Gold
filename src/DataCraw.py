@@ -17,6 +17,7 @@ ts.realtime_quote = realtime_quote
 ts.realtime_list = realtime_list
 ts.realtime_tick = realtime_tick
 
+import logging
 logging.basicConfig(format='%(asctime)s %(message)s')
 log = logging.getLogger(name="log")
 log.setLevel(level=logging.INFO)

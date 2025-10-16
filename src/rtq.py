@@ -27,13 +27,6 @@ from tushare.stock.rtq_vars import (
     zh_sina_a_stock_cookies,
 )
 
-# df表头
-rtqv.LIVE_DATA_COLS.append("OUTSIDE_PAN") # outside_pan
-rtqv.LIVE_DATA_COLS.append("INSIDE_PAN") # inside_pan
-# df表头顺序
-rtqv.LIVE_DATA_COLS_REINDEX.append("OUTSIDE_PAN") # 
-rtqv.LIVE_DATA_COLS_REINDEX.append("INSIDE_PAN") # 
-
 
 def _random(n=13):
     from random import randint
@@ -89,6 +82,14 @@ def realtime_quote(ts_code="688553.SH", src="sina", ):
     if src == "sina":
         return get_realtime_quotes_sina(symbols)
     else:
+        
+        if "OUTSIDE_PAN" != rtqv.LIVE_DATA_COLS[-1]:
+            # df表头
+            rtqv.LIVE_DATA_COLS.append("OUTSIDE_PAN") # outside_pan
+            rtqv.LIVE_DATA_COLS.append("INSIDE_PAN") # inside_pan
+            # df表头顺序
+            rtqv.LIVE_DATA_COLS_REINDEX.append("OUTSIDE_PAN") # 
+            rtqv.LIVE_DATA_COLS_REINDEX.append("INSIDE_PAN") # 
         return get_realtime_quotes_dc(symbols)
 
 
@@ -131,6 +132,7 @@ def get_realtime_quotes_sina(symbol="688553"):  # "688553"
             syms_list.append(syms[index])
     if len(syms_list) == 0:
         return None
+        # pass
     df = pd.DataFrame(data_list, columns=ct.LIVE_DATA_COLS)
     df = df.drop('s', axis=1)
     df['code'] = syms_list
