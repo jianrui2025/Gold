@@ -109,9 +109,33 @@ class Robot():
                 "content": "\n".join(final_list)
             }
         }
-
         return result
         
+    def transMessage_MeanLineAndVolume(self,data):
+        title_mode = "金叉预警： {fund_code} 价格满足 {condition}，当前单价：{price}。"
+        mode_b = '<font color="warning">{}</font>'
+        mode_a = '> {key}:<font color="comment">{value}</font>'
+
+        final_dict = {}
+        for k,v in data.items():
+            if k in ["fund_code","condition","price"]:
+                final_dict[k] = mode_b.format(v)
+            else:
+                final_dict[k] = mode_a.format(key=k,value=v)
+
+        final_list = []
+        final_list.append(title_mode.format(fund_code=final_dict["fund_code"],condition=final_dict["condition"],price=final_dict["price"]))
+        for k,v in final_dict.items():
+            if k not in ["fund_code","condition","price"]:
+                final_list.append(final_dict[k])
+
+        result = {
+            "msgtype" : "markdown",
+            "markdown": {
+                "content": "\n".join(final_list)
+            }
+        }
+        return result
 
     def sendMessage(self,data,func=None):
         data = func(data)

@@ -10,6 +10,19 @@ from scipy.stats import norm
 import numpy as np
 import adata
 import random
+import requests
+import pandas as pd
+import io
+import statistics
+import multiprocessing as mp
+
+import tushare as ts
+ts.set_token("08aaec36d1fad0154592971c8fb64a472b8f3fe954dc33c8d0e87447")
+from rtq import  (realtime_quote, realtime_list)
+from histroy_divide import (realtime_tick)
+ts.realtime_quote = realtime_quote
+ts.realtime_list = realtime_list
+ts.realtime_tick = realtime_tick
 
 logging.basicConfig(format='%(asctime)s %(message)s')
 log = logging.getLogger(name="log")
@@ -18,7 +31,7 @@ log.setLevel(level=logging.INFO)
 class StrategyBase():
     def __init__(self,runStrategyInterval):
         self.robot = Robot()
-        self.databaseOperation = DatabaseOperation()
+        # self.databaseOperation = DatabaseOperation()
         self.tradeCalender,self.tradeYear = self.getTradeCalender()
         self.runStrategyInterval = runStrategyInterval # 检测策略的间隔
         self.RANDOM_STR = "ZXCVBNMASDFGHJKLQWERTYUIOP1234567890qwertyuiopasdfghjklzxcvbnm"
@@ -104,6 +117,8 @@ class StrategyBase():
                     if currentTimestamp < morningTimestamp[0]:
                         self.before_strategy()
                         log.info(":休眠到开市！")
+                        currentDate = self.getCurrentDate()
+                        currentTimestamp = currentDate.timestamp()
                         time.sleep(morningTimestamp[0] - currentTimestamp)
 
                     elif morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
@@ -117,6 +132,8 @@ class StrategyBase():
                     nextDayTimestamp = nextDay.timestamp()
                     currentTimestamp = currentDate.timestamp()
                     log.info(":今日已经闭市，休眠到下一日")
+                    currentDate = self.getCurrentDate()
+                    currentTimestamp = currentDate.timestamp()
                     time.sleep(nextDayTimestamp - currentTimestamp)
                     break
 
@@ -701,12 +718,159 @@ class Strategy_LowPriceAndHighPrice_Line_Prediction(StrategyBase):
             wornning = {"condition": "<={low}".format(low=str(predict_low*100)), "time": 5, "onlineday": 1, "fund_code": fund_code, "id": "auto_"+"".join(random.sample(self.RANDOM_STR,10)), "status": "开启", "datatime": datetime.now().strftime("%Y-%m-%d"), "info": datetime.now().strftime("%Y-%m-%d")+"价格报警"}
             self.set_worning(wornning,self.wornning_file)
 
+class Strategy_MeanLineAndVolume(StrategyBase):
+    def __init__(self):
+        self.runStrategyInterval = 60 # 价格检索间隔
+        super().__init__(self.runStrategyInterval)
+        self.HpParam_path = "/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v6.jsonl"
+
+    def read_HpParam(self,HpParam_path):
+        # 读取超参数配置信息
+        with open(HpParam_path,"r") as f:
+            HpParam_list = [json.loads(i.strip()) for i in f]
+            # HpParam_list = HpParam_list[:2]
+        HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
+        return HpParam_dict
+    
+    def _request_post(self,**kwargs):
+        response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
+        while response.status_code != 200:
+            time.sleep(range.sample([i for i in range(30,69)],1)[0])
+            response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
+            log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
+        buffer = io.BytesIO(response.content)
+        log.info("数据获取成功，参数如下:"+kwargs["stock_code"])
+        df = pd.read_pickle(buffer)
+        return df
+
+    def build_current_day_param(self,kwargs):
+        # 构造检索的参数值
+        mean_long_day = kwargs["mean_long_day"]
+        mean_short_day = kwargs["mean_short_day"]
+        volume_day = kwargs["Volume_day"]
+        max_day = max(mean_long_day,mean_short_day,volume_day)
+
+        # 从QMT读取行情信息
+        QMT_kwargs = {}
+        QMT_kwargs["field_list"] = ["time","open","close","low","high","volume"]
+        QMT_kwargs["stock_code"] = kwargs["fund_code"]
+        QMT_kwargs["incrementally"] = False
+
+        # 计算金叉的最小值
+        QMT_kwargs["period"] = "1d"
+        QMT_kwargs["count"] = max_day
+        df_k_1d = self._request_post(**QMT_kwargs)
+        df_k_1d = df_k_1d.to_dict(orient="index")
+        df_k_1d_key = [i for i in df_k_1d.keys()]
+        com_day_long = df_k_1d_key[-mean_long_day:]
+        df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
+        com_day_short = df_k_1d_key[-mean_short_day:]
+        df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
+        meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day+1)
+        meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
+        min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
+        kwargs["min_price"] = min_price
+
+        # 计算交易量的平均演变过程
+        com_day_volume = df_k_1d_key[-volume_day:]
+        QMT_kwargs["period"] = "1m"
+        QMT_kwargs.pop("count")
+        QMT_kwargs["start_time"] = com_day_volume[0]
+        QMT_kwargs["end_time"] = com_day_volume[-1]
+        df_k_5m = self._request_post(**QMT_kwargs)
+        df_k_5m = df_k_5m.to_dict(orient="index")
+        df_k_5m_divideByDay = {}
+        for k,v in df_k_5m.items():
+            day = k[:8]
+            df_k_5m_divideByDay.setdefault(day,[])
+            df_k_5m_divideByDay[day].append(v)
+        df_k_5m_key = [i for i in df_k_5m_divideByDay.keys()]
+        df_k_5m_divideByDay_tmp = [df_k_5m_divideByDay[i] for i in com_day_volume]
+        df_k_5m_divideByDay_tmp_dict = {}
+        for tmp in df_k_5m_divideByDay_tmp:
+            for i in tmp:
+                time_int = int(datetime.fromtimestamp(int(i["time"])/1000).strftime("%H%M%S"))
+                df_k_5m_divideByDay_tmp_dict.setdefault(time_int,[])
+                df_k_5m_divideByDay_tmp_dict[time_int].append(i)
+        tmp_sum = 0
+        df_k_5m_volume_mean = {}
+        for k,v in df_k_5m_divideByDay_tmp_dict.items():
+            tmp_sum = tmp_sum + statistics.mean([i["volume"] for i in v])
+            df_k_5m_volume_mean[k] = tmp_sum
+        kwargs["df_k_5m_volume_mean"] = df_k_5m_volume_mean
+
+        return kwargs
+        
+    def before_strategy(self):
+        # 休眠一个小时
+        # time.sleep(3600)
+
+        # 读取超参数
+        self.HpParam_dict = self.read_HpParam(self.HpParam_path)
+        self.fund_code_list = list(self.HpParam_dict.keys())
+        self.fund_code_dict = {i:0 for i in self.fund_code_list}
+        with mp.Pool(processes=1) as pool:
+            tmp = pool.map(self.build_current_day_param,list(self.HpParam_dict.values()))
+            self.HpParam_dict = {k:v for k,v in zip(self.fund_code_list,tmp)}
+        self.fund_code_group = []
+        for i in range(0,len(self.fund_code_list),50):
+            self.fund_code_group.append(self.fund_code_list[i:i+50])
+
+    def strategy(self):
+        start = time.time()
+        for fund_codes in self.fund_code_group:
+            try:
+                df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
+            except Exception as e:
+                data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
+                self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
+                time.sleep(60)
+
+            df = df.to_dict(orient="records")
+            for one_code in df:
+                # 参数抄写出来
+                name = one_code["NAME"]
+                fund_code = one_code["TS_CODE"]
+                date = one_code["DATE"]+" "+one_code["TIME"]
+                price = float(one_code["PRICE"])
+                volume = int(one_code["VOLUME"])/100
+                date_time = int(datetime.strptime(date, '%Y%m%d %H:%M:%S').strftime("%H%M%S"))
+                HpParam = self.HpParam_dict[fund_code]
+                df_k_5m_volume_mean = HpParam["df_k_5m_volume_mean"][(date_time//100)*100]
+                min_price = HpParam["min_price"]
+                ShouYi = HpParam["ShouYi"]
+                ZhiShun = HpParam["ZhiShun"]
+                mean_keep_day = HpParam["mean_keep_day"]
+                precesion = HpParam["precion"]
+
+                # 计算均值 且 成交量大于过去的均值
+                if price > min_price and volume > df_k_5m_volume_mean and self.fund_code_dict[fund_code]==0:
+                    ShouYi_price = price*(1+ShouYi)
+                    ZhiShun_price = price*(1+ZhiShun)
+                    post_data = {
+                        "fund_code" : fund_code,
+                        "condition" : ">"+str(min_price),
+                        "price" : str(price),
+                        "name": name,
+                        "收益线" : str(ShouYi_price),
+                        "止损线" : str(ZhiShun_price),
+                        "平均持有时间": str(mean_keep_day),
+                        "回测准确率": str(precesion)
+                    }
+                    self.robot.sendMessage(post_data,self.robot.transMessage_MeanLineAndVolume)
+                    self.fund_code_dict[fund_code] = 1
+        end = time.time()
+
+        
+
+    def after_strategy(self):
+        pass
 
 if __name__ == "__main__":
-    strategy = Strategy_LowPriceAndHighPrice_Line_Prediction()
+    strategy = Strategy_MeanLineAndVolume()
     strategy.before_strategy()
     strategy.strategy()
-    strategy.after_strategy()
+    # strategy.after_strategy()
 
             
 
