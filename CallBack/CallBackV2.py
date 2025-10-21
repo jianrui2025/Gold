@@ -206,7 +206,7 @@ class CallBackV2Base():
 
         # 挑选准确率90,
         # re1 = [i for i in re1 if i["precion"]>0.85 and i["mean_keep_day"]<4]
-        re1 = [i for i in re1 if i["precion"]>0.85 and i["mean_keep_day"]<4] 
+        re1 = [i for i in re1 if i["precion"]>0.80]
 
         # last_money最大的参数。
         max_ = -1
@@ -431,19 +431,6 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
             # df_k_1d = self._request_post(**kwargs)
             # df_k_1d = df_k_1d.to_dict(orient="index")
 
-
-            # with open("/home/jianrui/workspace/Gold/CallBack/tmp1.json","w") as f:
-            #     json.dump(df_k_5m_divideByDay,f,indent=2)
-            # with open("/home/jianrui/workspace/Gold/CallBack/tmp2.json","w") as f:
-            #     json.dump(df_k_1d,f,indent=2)
-            # with open("/home/jianrui/workspace/Gold/CallBack/tmp3.json","w") as f:
-            #     json.dump(df_k_5m_divideByDay,f,indent=2)
-            
-            # with open("/home/jianrui/workspace/Gold/CallBack/tmp1.json","r") as f:
-            #     df_k_5m_divideByDay = json.load(f)
-            # with open("/home/jianrui/workspace/Gold/CallBack/tmp2.json","r") as f:
-            #     df_k_1d = json.load(f)
-
             df_k_1d = pd.read_pickle("/home/jianrui/workspace/Gold/CallBack/history_data/{}_1d.pkl".format(kwargs["stock_code"]))
             df_k_1d = df_k_1d.to_dict(orient="index")
             df_k_5m = pd.read_pickle("/home/jianrui/workspace/Gold/CallBack/history_data/{}_1m.pkl".format(kwargs["stock_code"]))
@@ -603,8 +590,8 @@ if __name__ == "__main__":
     # callback.run()
 
     callback = CallBackV2_MeanLineAndVolumeV2()
-    callback.run()
-    # callback.precise()
+    # callback.run()
+    callback.precise()
 
 
         

@@ -727,9 +727,9 @@ class Strategy_LowPriceAndHighPrice_Line_Prediction(StrategyBase):
 
 class Strategy_MeanLineAndVolume(StrategyBase):
     def __init__(self):
-        self.runStrategyInterval = 60 # 价格检索间隔
+        self.runStrategyInterval = 30 # 价格检索间隔
         super().__init__(self.runStrategyInterval)
-        self.HpParam_path = "/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v6.jsonl"
+        self.HpParam_path = "/home/jianrui/Gold/CallBack/conf/MeanLineAndVolume.jsonl"
 
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
@@ -810,7 +810,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         
     def before_strategy(self):
         # 休眠一个小时
-        # time.sleep(3600)
+        time.sleep(3600)
 
         # 读取超参数
         self.HpParam_dict = self.read_HpParam(self.HpParam_path)
@@ -859,6 +859,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         volume > df_k_5m_volume_mean and \
                         self.fund_code_dict[fund_code] != True and \
                         self.fund_code_dict[fund_code] <0:
+                    
                     ShouYi_price = price*(1+ShouYi)
                     ZhiShun_price = price*(1+ZhiShun)
                     post_data = {
