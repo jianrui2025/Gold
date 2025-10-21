@@ -725,13 +725,13 @@ class Strategy_MeanLineAndVolume(StrategyBase):
     def __init__(self):
         self.runStrategyInterval = 60 # 价格检索间隔
         super().__init__(self.runStrategyInterval)
-        self.HpParam_path = "/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v6.jsonl"
+        self.HpParam_path = "/home/jianrui/Gold/CallBack/conf/MeanLineAndVolume.jsonl"
 
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = HpParam_list[:2]
+            HpParam_list = HpParam_list[:50]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -744,6 +744,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         buffer = io.BytesIO(response.content)
         log.info("数据获取成功，参数如下:"+kwargs["stock_code"])
         df = pd.read_pickle(buffer)
+        print("数据详情",df)
         return df
 
     def build_current_day_param(self,kwargs):
@@ -823,16 +824,20 @@ class Strategy_MeanLineAndVolume(StrategyBase):
     def strategy(self):
         start = time.time()
         for fund_codes in self.fund_code_group:
+            start2 = time.time()
             try:
                 df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
             except Exception as e:
                 data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
                 self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
                 time.sleep(60)
+            end2 = time.time()
+            print("查询50条参数耗费的时间",end2-start2)
 
             df = df.to_dict(orient="records")
             for one_code in df:
                 # 参数抄写出来
+                start3 = time.time()
                 name = one_code["NAME"]
                 fund_code = one_code["TS_CODE"]
                 date = one_code["DATE"]+" "+one_code["TIME"]
@@ -847,7 +852,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 mean_keep_day = HpParam["mean_keep_day"]
                 precesion = HpParam["precion"]
 
-                log.info(json.dumps(HpParam,ensure_ascii=False))
+                #log.info(json.dumps(HpParam,ensure_ascii=False))
 
                 # 计算均值 且 成交量大于过去的均值
                 if price > min_price and volume > df_k_5m_volume_mean and self.fund_code_dict[fund_code]==0:
@@ -866,7 +871,10 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                     }
                     self.robot.sendMessage(post_data,self.robot.transMessage_MeanLineAndVolume)
                     self.fund_code_dict[fund_code] = 1
+                end3 = time.time()
+                print("判断一个股票耗费的时间",end3-start3)
         end = time.time()
+        print("一次查询所有的参数耗费的时间",end)
 
         
 
