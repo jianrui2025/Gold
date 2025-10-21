@@ -36,7 +36,7 @@ class StrategyBase():
         self.runStrategyInterval = runStrategyInterval # 检测策略的间隔
         self.RANDOM_STR = "ZXCVBNMASDFGHJKLQWERTYUIOP1234567890qwertyuiopasdfghjklzxcvbnm"
 
-    def getCurrentDate(slef):
+    def getCurrentDate(self):
         # 读取当前时间，返回年月日时分秒
         return datetime.now()
     
@@ -843,6 +843,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 mean_keep_day = HpParam["mean_keep_day"]
                 precesion = HpParam["precion"]
 
+                log.info(json.dumps(HpParam,ensure_ascii=False))
+
                 # 计算均值 且 成交量大于过去的均值
                 if price > min_price and volume > df_k_5m_volume_mean and self.fund_code_dict[fund_code]==0:
                     ShouYi_price = price*(1+ShouYi)
@@ -855,7 +857,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         "收益线" : str(ShouYi_price),
                         "止损线" : str(ZhiShun_price),
                         "平均持有时间": str(mean_keep_day),
-                        "回测准确率": str(precesion)
+                        "回测准确率": str(precesion),
+                        "报警时间": datetime.strptime(self.getCurrentDate(),'%Y-%m-%d %H:%M:%S')
                     }
                     self.robot.sendMessage(post_data,self.robot.transMessage_MeanLineAndVolume)
                     self.fund_code_dict[fund_code] = 1
