@@ -862,7 +862,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         "止损线" : str(ZhiShun_price),
                         "平均持有时间": str(mean_keep_day),
                         "回测准确率": str(precesion),
-                        "报警时间": datetime.strptime(self.getCurrentDate(),'%Y-%m-%d %H:%M:%S')
+                        "报警时间": self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S')
                     }
                     self.robot.sendMessage(post_data,self.robot.transMessage_MeanLineAndVolume)
                     self.fund_code_dict[fund_code] = 1
