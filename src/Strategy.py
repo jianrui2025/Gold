@@ -35,6 +35,7 @@ class StrategyBase():
         self.tradeCalender,self.tradeYear = self.getTradeCalender()
         self.runStrategyInterval = runStrategyInterval # 检测策略的间隔
         self.RANDOM_STR = "ZXCVBNMASDFGHJKLQWERTYUIOP1234567890qwertyuiopasdfghjklzxcvbnm"
+        self.before_strategy_mark = False
 
     def getCurrentDate(self):
         # 读取当前时间，返回年月日时分秒
@@ -106,6 +107,8 @@ class StrategyBase():
                 if morningTimestamp[0] <= currentTimestamp <= morningTimestamp[1] or afternoonTimestamp[0] <= currentTimestamp <= afternoonTimestamp[1]:
 
                     start = datetime.now()
+                    if not self.before_strategy_mark:
+                        self.before_strategy_mark = self.before_strategy()
                     self.strategy()
                     end = datetime.now()
                     delte = end - start
@@ -115,7 +118,7 @@ class StrategyBase():
                 # 上午开市时间段 和 中午休市时间段
                 elif currentTimestamp < morningTimestamp[0] or morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
                     if currentTimestamp < morningTimestamp[0]:
-                        self.before_strategy()
+                        self.before_strategy_mark = self.before_strategy()
                         log.info(":休眠到开市！")
                         currentDate = self.getCurrentDate()
                         currentTimestamp = currentDate.timestamp()
@@ -815,6 +818,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         self.fund_code_group = []
         for i in range(0,len(self.fund_code_list),50):
             self.fund_code_group.append(self.fund_code_list[i:i+50])
+        return True
 
     def strategy(self):
         start = time.time()
