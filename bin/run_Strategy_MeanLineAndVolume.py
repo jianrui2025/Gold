@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/jianrui/Gold/src")
+sys.path.append("./src")
 from Strategy import Strategy_MeanLineAndVolume
 
 strategy = Strategy_MeanLineAndVolume()

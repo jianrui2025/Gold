@@ -15,6 +15,7 @@ import pandas as pd
 import io
 import statistics
 import multiprocessing as mp
+import copy
 
 import tushare as ts
 ts.set_token("08aaec36d1fad0154592971c8fb64a472b8f3fe954dc33c8d0e87447")
@@ -71,11 +72,11 @@ class StrategyBase():
         with open(worning_file,"a") as f:
             f.write(json.dumps(worning,ensure_ascii=False)+"\n")
     
-    @abstractclassmethod
-    def strategy(self):
+    def before_strategy(self):
         pass
 
-    def before_strategy(self):
+    @abstractclassmethod
+    def strategy(self,i):
         pass
 
     def after_strategy(self):
@@ -729,13 +730,13 @@ class Strategy_MeanLineAndVolume(StrategyBase):
     def __init__(self):
         self.runStrategyInterval = 30 # 价格检索间隔
         super().__init__(self.runStrategyInterval)
-        self.HpParam_path = "/home/jianrui/Gold/CallBack/conf/MeanLineAndVolume.jsonl"
+        self.HpParam_path = "./CallBack/conf/MeanLineAndVolume_v7.jsonl"
 
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = HpParam_list[:2]
+            HpParam_list = HpParam_list[1:2]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -810,7 +811,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         
     def before_strategy(self):
         # 休眠一个小时
-        time.sleep(3600)
+        # time.sleep(60)
 
         # 读取超参数
         self.HpParam_dict = self.read_HpParam(self.HpParam_path)
@@ -824,17 +825,20 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             self.fund_code_group.append(self.fund_code_list[i:i+50])
         return True
 
-    def strategy(self):
+    def strategy(self,i):
         start = time.time()
         for fund_codes in self.fund_code_group:
-            try:
-                df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
-            except Exception as e:
-                data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
-                self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
-                time.sleep(60)
+            # try:
+            #     df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
+            #     df.to_json("tmp.json",orient="records",lines=True)
+            # except Exception as e:
+            #     data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
+            #     self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
+            #     time.sleep(60)
+            # df = df.to_dict(orient="records")
 
-            df = df.to_dict(orient="records")
+            df = [i]
+            
             for one_code in df:
                 # 参数抄写出来
                 name = one_code["NAME"]
@@ -851,14 +855,20 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 mean_keep_day = HpParam["mean_keep_day"]
                 precesion = HpParam["precion"]
 
-                log.info(json.dumps(HpParam,ensure_ascii=False))
+                # 输出
+                info = copy.deepcopy(HpParam)
+                info["df_k_5m_volume_mean"] = df_k_5m_volume_mean
+                info["price"] = price
+                info["price_diff"] = self.fund_code_dict[fund_code]
+                info["volume"] = volume
+                log.info(json.dumps(info,ensure_ascii=False))
 
                 # 计算均值 且 成交量大于过去的均值
                 if min_price > 0 and \
                         price > min_price and \
                         volume > df_k_5m_volume_mean and \
                         self.fund_code_dict[fund_code] != True and \
-                        self.fund_code_dict[fund_code] <0:
+                        self.fund_code_dict[fund_code] < 0:
                     
                     ShouYi_price = price*(1+ShouYi)
                     ZhiShun_price = price*(1+ZhiShun)
@@ -887,7 +897,12 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 if __name__ == "__main__":
     strategy = Strategy_MeanLineAndVolume()
     strategy.before_strategy()
-    strategy.strategy()
+    df = pd.read_json("/home/jianrui/workspace/Gold/tmp.json",lines=True)
+    df = df.to_dict(orient="records")
+    for i in df:
+        for k in i.keys():
+            i[k] = str(i[k])
+        strategy.strategy(i)
     # strategy.after_strategy()
 
             

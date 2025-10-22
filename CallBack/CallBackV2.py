@@ -40,7 +40,6 @@ class CallBackV2Base():
         
         return HyperParam_list
         
-
     def run_onece(self,**kwargs):
         # 一个数据，一套超参数下的收益
         pass
@@ -204,10 +203,18 @@ class CallBackV2Base():
                 self.compute_last_money(i)
             re_1_dict = {build_key(i):i for i in re1}
 
-        # 挑选准确率90,
-        # re1 = [i for i in re1 if i["precion"]>0.85 and i["mean_keep_day"]<4]
-        re1 = [i for i in re1 if i["precion"]>0.80]
-
+        # 挑选准确率90
+        re1 = [i for i in re1 if i["last_money"]>200000]
+        re1 = [i for i in re1 if i["precion"]>0.80 and i["buy_num"]>4]
+        re1 = [i for i in re1 if i["mean_keep_day"]<5]
+      
+        # precion 最大
+        max_ = -1
+        for i in re1:
+            if i["precion"] > max_:
+                max_ = i["precion"]
+        re1 = [i for i in re1 if i["precion"]==max_]
+        
         # last_money最大的参数。
         max_ = -1
         max_re = ""
@@ -215,7 +222,7 @@ class CallBackV2Base():
             if i["last_money"] > max_:
                 max_ = i["last_money"]
                 max_re = i
-        
+
         return max_re
 
     def precise(self):
@@ -224,40 +231,14 @@ class CallBackV2Base():
         fund_path = [self.output_file.format(fund_code=i) for i in fund_code]
         fund_path_list = [{"path":i}  for i in fund_path]
         with mp.Pool(processes=4) as pool:
-            # precise = pool.map(self.get_info, fund_path_list)
-            # # 准确率写入文件
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume.jsonl","w") as f:
-            #     for i in precise:
-            #         i["precise"].pop("log")
-            #         f.write(json.dumps(i["precise"])+"\n")
-
-            # precise = pool.map(self.get_money_info, fund_path_list)
-            # # 准确率写入文件
-            # 准确率最高的参数，在不同收益点的准确率差异
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v1.jsonl","w") as f:
-            # 准确率最高的参数，在不同止损点的准确率差异
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v2.jsonl","w") as f:
-            # 止损点为-0.03时,准确率最高的参数，在不同止损点的准确率差异
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v3.jsonl","w") as f:
-            # last money 最多的参数下，不同止损点的差异
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v4.jsonl","w") as f:
-            # last money 最多的参数下，止损点-0.03，收益点0.01
-            # with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v5.jsonl","w") as f:
-                # for i in precise:
-                #     if i:
-                #         for j in i:
-                #             j.pop("log")
-                #             f.write(json.dumps(j)+"\n")
-                #         f.write("======="+"\n")
-
             precise = pool.map(self.select_conf, fund_path_list)
             numm = 0
             numm_none = 0
-            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v7.jsonl","w") as f:
+            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v9.jsonl","w") as f:
                 for i in precise:
                     if i:
-                        i.pop("log")
-                        f.write(json.dumps(i)+"\n")
+                        # i.pop("log")
+                        f.write(json.dumps(i,ensure_ascii=False)+"\n")
                         numm += 1
                     else:
                         numm_none += 1
@@ -397,6 +378,17 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
             "ShouYi":[0.008],
             "ZhiShun":[-0.032],
         }
+
+        # self.fund_code_list = ["560770.SH"]
+        # print("fund code数量",len(self.fund_code_list))
+        # self.HyperParam_dict = {
+        #     "mean_long_day":[15],
+        #     "mean_short_day":[3],
+        #     "Volume_day":[4],
+        #     "ShouYi":[0.008],
+        #     "ZhiShun":[-0.032],
+        # }
+
         self.output_file = "/home/jianrui/workspace/Gold/CallBack/log_MeanLineAndVolume/{fund_code}"
         self.max_len = -1
 
@@ -547,7 +539,6 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
                         status["money"] = 0
                         bought_price = price
                         log[current_data] = "买入==>"+json.dumps(status,ensure_ascii=False)
-                        # print(bought_price,log[current_data])
                         break
                     elif last_diff_price != True:
                         last_diff_price = price - min_price
@@ -580,8 +571,8 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         # 输出日志
         kwrags["log"] = log
 
-        with open(self.output_file.format(fund_code=fund_code),"a+") as f:
-            f.write(json.dumps(kwrags,ensure_ascii=False)+"\n")
+        # with open(self.output_file.format(fund_code=fund_code),"a+") as f:
+        #     f.write(json.dumps(kwrags,ensure_ascii=False)+"\n")
 
         return True
 
