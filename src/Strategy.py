@@ -76,7 +76,7 @@ class StrategyBase():
         pass
 
     @abstractclassmethod
-    def strategy(self,i):
+    def strategy(self):
         pass
 
     def after_strategy(self):
@@ -730,7 +730,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
     def __init__(self):
         self.runStrategyInterval = 30 # 价格检索间隔
         super().__init__(self.runStrategyInterval)
-        self.HpParam_path = "./CallBack/conf/MeanLineAndVolume_v7.jsonl"
+        self.HpParam_path = "./CallBack/conf/MeanLineAndVolume.jsonl"
 
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
@@ -825,19 +825,17 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             self.fund_code_group.append(self.fund_code_list[i:i+50])
         return True
 
-    def strategy(self,i):
+    def strategy(self):
         start = time.time()
         for fund_codes in self.fund_code_group:
-            # try:
-            #     df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
-            #     df.to_json("tmp.json",orient="records",lines=True)
-            # except Exception as e:
-            #     data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
-            #     self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
-            #     time.sleep(60)
-            # df = df.to_dict(orient="records")
-
-            df = [i]
+            try:
+                df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
+                df.to_json("tmp.json",orient="records",lines=True)
+            except Exception as e:
+                data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
+                self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
+                time.sleep(60)
+            df = df.to_dict(orient="records")
             
             for one_code in df:
                 # 参数抄写出来
@@ -897,12 +895,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 if __name__ == "__main__":
     strategy = Strategy_MeanLineAndVolume()
     strategy.before_strategy()
-    df = pd.read_json("/home/jianrui/workspace/Gold/tmp.json",lines=True)
-    df = df.to_dict(orient="records")
-    for i in df:
-        for k in i.keys():
-            i[k] = str(i[k])
-        strategy.strategy(i)
+    strategy.strategy()
     # strategy.after_strategy()
 
             
