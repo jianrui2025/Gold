@@ -746,8 +746,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
             log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
         buffer = io.BytesIO(response.content)
-        log.info("数据获取成功，参数如下:"+kwargs["stock_code"])
         df = pd.read_pickle(buffer)
+        log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(df.index.to_list()))
         return df
 
     def build_current_day_param(self,kwargs):
