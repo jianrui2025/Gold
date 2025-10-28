@@ -736,6 +736,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
+            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "516650.SH"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -747,7 +748,10 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
         buffer = io.BytesIO(response.content)
         df = pd.read_pickle(buffer)
-        log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(df.index.to_list()))
+        index = set([i[:8] for i in df.index.to_list()])
+        index = [int(i) for i in index]
+        index.sort(key=lambda x:x)
+        log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(index))
         return df
 
     def build_current_day_param(self,kwargs):
@@ -894,7 +898,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 if __name__ == "__main__":
     strategy = Strategy_MeanLineAndVolume()
     strategy.before_strategy()
-    strategy.strategy()
+    # print(strategy.HpParam_dict)
+    # strategy.strategy()
     # strategy.after_strategy()
 
             
