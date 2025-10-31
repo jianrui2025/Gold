@@ -736,7 +736,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "516650.SH"]
+            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -763,7 +763,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
         # 从QMT读取行情信息
         QMT_kwargs = {}
-        QMT_kwargs["field_list"] = ["time","open","close","low","high","volume"]
+        QMT_kwargs["field_list"] = ["time","open","close","low","high","volume","preClose"]
         QMT_kwargs["stock_code"] = kwargs["fund_code"]
         QMT_kwargs["incrementally"] = False
 
@@ -781,6 +781,12 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
         min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
         kwargs["min_price"] = min_price
+
+        # 计算前一天的收盘价
+        yesterday_key = df_k_1d_key[-1]
+        yesterday_1d = df_k_1d[yesterday_key]
+        yesterday_price = yesterday_1d["preClose"]
+        kwargs["preClose"] = yesterday_price
 
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
@@ -855,6 +861,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 ZhiShun = HpParam["ZhiShun"]
                 mean_keep_day = HpParam["mean_keep_day"]
                 precesion = HpParam["precion"]
+                preClose = HpParam["preClose"]
 
                 # 输出
                 info = copy.deepcopy(HpParam)
@@ -868,8 +875,9 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 if min_price > 0 and \
                         price > min_price and \
                         volume > df_k_5m_volume_mean and \
-                        self.fund_code_dict[fund_code] != True and \
-                        self.fund_code_dict[fund_code] < 0:
+                        self.fund_code_dict[fund_code] != True \
+                        and min_price > preClose :
+                        # and self.fund_code_dict[fund_code] < 0:
                     
                     ShouYi_price = price*(1+ShouYi)
                     ZhiShun_price = price*(1+ZhiShun)
