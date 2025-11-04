@@ -214,6 +214,13 @@ class CallBackV2Base():
             if i["precion"] > max_:
                 max_ = i["precion"]
         re1 = [i for i in re1 if i["precion"]==max_]
+
+        # 筛选间隔长度最大
+        max_ = -1
+        for i in re1:
+            if i["mean_long_day"] - i["mean_short_day"] > max_:
+                max_ = i["mean_long_day"] - i["mean_short_day"]
+        re1 = [i for i in re1 if i["mean_long_day"] - i["mean_short_day"]==max_]
         
         # last_money最大的参数。
         max_ = -1
@@ -234,7 +241,7 @@ class CallBackV2Base():
             precise = pool.map(self.select_conf, fund_path_list)
             numm = 0
             numm_none = 0
-            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v10.jsonl","w") as f:
+            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v11.jsonl","w") as f:
                 for i in precise:
                     if i:
                         # i.pop("log")
@@ -374,9 +381,10 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         self.fund_code_list = self.fund_code_list1
         print("fund code数量",len(self.fund_code_list))
         self.HyperParam_dict = {
-            "mean_long_day":[9,12,13,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57],
+            "mean_long_day":[12,15,18,21,24,27,30,33,36,39,42,45,48,51,54],
             "mean_short_day":[3,6,9,12,15,18,21,24,27,30,33],
             "Volume_day":[4,8,12,16,20],
+            "Bolin_day":[8,12,16,20],
             "ShouYi":[0.008],
             "ZhiShun":[-0.032],
         }
@@ -391,7 +399,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         #     "ZhiShun":[-0.032],
         # }
 
-        self.output_file = "/home/jianrui/workspace/Gold/CallBack/log_MeanLineAndVolume1/{fund_code}"
+        self.output_file = "/home/jianrui/workspace/Gold/CallBack/log_MeanLineAndVolume2/{fund_code}"
         self.max_len = -1
 
     def _request_post(self,**kwargs):
@@ -469,6 +477,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         mean_long_day = kwrags["mean_long_day"]
         mean_short_day = kwrags["mean_short_day"]
         Volume_day = kwrags["Volume_day"]
+        Boling_day = kwrags["Bolin_day"]
         ShouYi = kwrags["ShouYi"]
         ZhiShun = kwrags["ZhiShun"]
         fund_code = kwrags["fund_code"]       
@@ -477,7 +486,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
             return False
 
 
-        max_day = max(mean_long_day,mean_short_day,Volume_day)
+        max_day = max(mean_long_day,mean_short_day,Volume_day,Boling_day)
 
         status = {"money":200000,"stock":0}
         single = 0
@@ -496,7 +505,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
             current_k_5m_dict_key.sort(key = lambda x: x,reverse=False)
             
             if single == 0:
-                # 计算交易量平均演变过程
+                # 计算交易量平均演变过程    
                 com_day = df_k_1d_key[index_day-Volume_day:index_day]
                 df_k_1d_tmp = [df_k_1d[i] for i in com_day]
                 df_k_5m_divideByDay_tmp = [df_k_5m_divideByDay[i] for i in com_day]
@@ -514,18 +523,35 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
                     df_k_5m_volume_mean[k] = tmp_sum
 
                 # 求解当前条件下，满足金叉价格的最小值
-                com_day_long = df_k_1d_key[index_day-mean_long_day:index_day]
-                df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
-                com_day_short = df_k_1d_key[index_day-mean_short_day:index_day]
-                df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
-                meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day+1)
-                meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
-                min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
+                mode = 2
+                if mode == 1:
+                    com_day_long = df_k_1d_key[index_day-mean_long_day:index_day]
+                    df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
+                    com_day_short = df_k_1d_key[index_day-mean_short_day:index_day]
+                    df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
+                    meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day+1)
+                    meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
+                    min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
+                elif mode == 2:
+                    com_day_long = df_k_1d_key[index_day-mean_long_day:index_day]
+                    df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
+                    com_day_short = df_k_1d_key[index_day-mean_short_day:index_day]
+                    df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
+                    meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day)
+                    sumShort = sum([i["close"] for i in df_k_1d_tmp_short])
+                    min_price = meanLong*((mean_short_day+1)) - sumShort
 
                 # 获取前一天的收盘价
                 yesterday_key = df_k_1d_key[index_day-1:index_day]
                 yesterday = [df_k_1d[i] for i in yesterday_key][0]
                 yesterday_close = yesterday["close"]
+
+                # 柏林线
+                tmp_Boling_day = df_k_1d_key[index_day-Boling_day:index_day]
+                Boling_mean_day = sum([i["close"] for i in tmp_Boling_day])/tmp_Boling_day
+                Boling_Sta = sum([abs(i["close"]-Boling_mean_day) for i in tmp_Boling_day])/tmp_Boling_day
+                Boling_Sta = Boling_Sta * 2
+
 
                 # 开始k线遍历价格
                 volume_sum = 0
@@ -546,6 +572,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
                         status["stock"] = status["money"]/price
                         status["money"] = 0
                         bought_price = price
+                        ZhiShun = -(Boling_Sta/bought_price)
                         log[current_data] = "买入==>"+json.dumps(status,ensure_ascii=False)
                         break
                     elif last_diff_price != True:

@@ -767,26 +767,43 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         QMT_kwargs["stock_code"] = kwargs["fund_code"]
         QMT_kwargs["incrementally"] = False
 
-        # 计算金叉的最小值
+        # 获取1d数据
         QMT_kwargs["period"] = "1d"
         QMT_kwargs["count"] = max_day
         df_k_1d = self._request_post(**QMT_kwargs)
         df_k_1d = df_k_1d.to_dict(orient="index")
         df_k_1d_key = [i for i in df_k_1d.keys()]
-        com_day_long = df_k_1d_key[-mean_long_day:]
-        df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
-        com_day_short = df_k_1d_key[-mean_short_day:]
-        df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
-        meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day+1)
-        meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
-        min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
-        kwargs["min_price"] = min_price
+
+        # 计算金叉的最小值
+        mode = 2
+        if mode == 1:
+            com_day_long = df_k_1d_key[-mean_long_day:]
+            df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
+            com_day_short = df_k_1d_key[-mean_short_day:]
+            df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
+            meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day+1)
+            meanShort = sum([i["close"] for i in df_k_1d_tmp_short])/(mean_short_day+1)
+            min_price = (mean_long_day+1)*(mean_short_day+1)*(meanLong-meanShort)/(mean_long_day-mean_short_day)
+            kwargs["min_price"] = min_price
+        elif mode == 2:
+            com_day_long = df_k_1d_key[-mean_long_day:]
+            df_k_1d_tmp_long = [df_k_1d[i] for i in com_day_long]
+            com_day_short = df_k_1d_key[-mean_short_day:]
+            df_k_1d_tmp_short = [df_k_1d[i] for i in com_day_short]
+            meanLong = sum([i["close"] for i in df_k_1d_tmp_long])/(mean_long_day)
+            sumShort = sum([i["close"] for i in df_k_1d_tmp_short])
+            min_price = meanLong*((mean_short_day+1)) - sumShort
+            kwargs["min_price"] = min_price
 
         # 计算前一天的收盘价
         yesterday_key = df_k_1d_key[-1]
         yesterday_1d = df_k_1d[yesterday_key]
         yesterday_price = yesterday_1d["preClose"]
         kwargs["preClose"] = yesterday_price
+
+        # 计算柏林带
+        
+
 
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
