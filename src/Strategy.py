@@ -75,7 +75,7 @@ class StrategyBase():
     def before_strategy(self):
         pass
 
-    @abstractclassmethod
+    # @abstractclassmethod
     def strategy(self):
         pass
 
@@ -124,6 +124,7 @@ class StrategyBase():
                         currentDate = self.getCurrentDate()
                         currentTimestamp = currentDate.timestamp()
                         time.sleep(morningTimestamp[0] - currentTimestamp)
+                        log.info(":苏醒")
 
                     elif morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
                         if not self.before_strategy_mark:
@@ -132,17 +133,19 @@ class StrategyBase():
                         currentDate = self.getCurrentDate()
                         currentTimestamp = currentDate.timestamp()
                         time.sleep(afternoonTimestamp[0]-currentTimestamp)
+                        log.info(":苏醒")
 
                 # 下午闭市时间段
                 elif afternoonTimestamp[1] < currentTimestamp:
                     self.after_strategy()
+                    log.info(":今日已经闭市，休眠到下一日")
+                    currentDate = self.getCurrentDate()
                     nextDay = self.getNextDay(currentDate)
                     nextDayTimestamp = nextDay.timestamp()
                     currentTimestamp = currentDate.timestamp()
-                    log.info(":今日已经闭市，休眠到下一日")
-                    currentDate = self.getCurrentDate()
                     currentTimestamp = currentDate.timestamp()
                     time.sleep(nextDayTimestamp - currentTimestamp)
+                    log.info(":苏醒")
                     break
 
 class Strategy_FluctuationAndNorm(StrategyBase):
@@ -803,8 +806,6 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
         # 计算柏林带
         
-
-
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
         QMT_kwargs["period"] = "1m"
@@ -836,23 +837,28 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         return kwargs
         
     def before_strategy(self):
-        # 休眠一个小时
-        # time.sleep(60)
 
         # 读取超参数
         self.HpParam_dict = self.read_HpParam(self.HpParam_path)
         self.fund_code_list = list(self.HpParam_dict.keys())
         self.fund_code_dict = {i:False for i in self.fund_code_list}
-        with mp.Pool(processes=1) as pool:
-            tmp = pool.map(self.build_current_day_param,list(self.HpParam_dict.values()))
-            self.HpParam_dict = {k:v for k,v in zip(self.fund_code_list,tmp)}
+
+        # with mp.Pool(processes=1) as pool:
+        #     tmp = pool.map(self.build_current_day_param,list(self.HpParam_dict.values()))
+        #     self.HpParam_dict = {k:v for k,v in zip(self.fund_code_list,tmp)}
+
+        tmp = []
+        for i in list(self.HpParam_dict.values()):
+            j = self.build_current_day_param(i)
+            tmp.append(j)
+        self.HpParam_dict = {k:v for k,v in zip(self.fund_code_list,tmp)}
+
         self.fund_code_group = []
         for i in range(0,len(self.fund_code_list),50):
             self.fund_code_group.append(self.fund_code_list[i:i+50])
         return True
 
     def strategy(self):
-        start = time.time()
         for fund_codes in self.fund_code_group:
             try:
                 df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
@@ -913,16 +919,14 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                     self.fund_code_dict[fund_code] = True
                 elif self.fund_code_dict[fund_code] != True:
                     self.fund_code_dict[fund_code] = price - min_price
-        end = time.time()
-
-        
 
     def after_strategy(self):
         pass
 
 if __name__ == "__main__":
     strategy = Strategy_MeanLineAndVolume()
-    strategy.before_strategy()
+    strategy.run()
+    # strategy.before_strategy()
     # print(strategy.HpParam_dict)
     # strategy.strategy()
     # strategy.after_strategy()
