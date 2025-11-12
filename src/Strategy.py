@@ -739,7 +739,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
+            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -801,26 +801,28 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 计算前一天的收盘价
         yesterday_key = df_k_1d_key[-1]
         yesterday_1d = df_k_1d[yesterday_key]
-        yesterday_price = yesterday_1d["preClose"]
+        yesterday_price = yesterday_1d["close"]
         kwargs["preClose"] = yesterday_price
-
-        # 计算柏林带
         
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
+        com_day_volume_increase = [i for i in df_k_1d_key if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
         QMT_kwargs["period"] = "1m"
         QMT_kwargs.pop("count")
         QMT_kwargs["start_time"] = com_day_volume[0]
         QMT_kwargs["end_time"] = com_day_volume[-1]
+
         df_k_5m = self._request_post(**QMT_kwargs)
         df_k_5m = df_k_5m.to_dict(orient="index")
         df_k_5m_divideByDay = {}
         for k,v in df_k_5m.items():
-            day = k[:8]
+            day = k[:8]  # 前8个字符是年月日
+            if day not in com_day_volume_increase:
+                continue
             df_k_5m_divideByDay.setdefault(day,[])
             df_k_5m_divideByDay[day].append(v)
         df_k_5m_key = [i for i in df_k_5m_divideByDay.keys()]
-        df_k_5m_divideByDay_tmp = [df_k_5m_divideByDay[i] for i in com_day_volume]
+        df_k_5m_divideByDay_tmp = [df_k_5m_divideByDay[i] for i in df_k_5m_key]
         df_k_5m_divideByDay_tmp_dict = {}
         for tmp in df_k_5m_divideByDay_tmp:
             for i in tmp:
@@ -868,7 +870,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
                 time.sleep(60)
                 continue
-            
+
             df = df.to_dict(orient="records")
             
             for one_code in df:
@@ -904,8 +906,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         and min_price > preClose :
                         # and self.fund_code_dict[fund_code] < 0:
                     
-                    ShouYi_price = price*(1+ShouYi)
-                    ZhiShun_price = price*(1+ZhiShun)
+                    ShouYi_price = min_price*(1+ShouYi)
+                    ZhiShun_price = min_price*(1+ZhiShun)
                     post_data = {
                         "fund_code" : fund_code,
                         "condition" : ">"+str(min_price),
@@ -927,8 +929,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
 if __name__ == "__main__":
     strategy = Strategy_MeanLineAndVolume()
-    strategy.run()
-    # strategy.before_strategy()
+    # strategy.run()
+    strategy.before_strategy()
     # print(strategy.HpParam_dict)
     # strategy.strategy()
     # strategy.after_strategy()
