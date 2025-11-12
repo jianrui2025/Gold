@@ -867,6 +867,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
                 self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
                 time.sleep(60)
+                continue
+            
             df = df.to_dict(orient="records")
             
             for one_code in df:
