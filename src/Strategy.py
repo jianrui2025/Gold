@@ -739,7 +739,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
+            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -806,7 +806,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
-        com_day_volume_increase = [i for i in df_k_1d_key if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
+        com_day_volume_increase = [i for i in com_day_volume if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
         QMT_kwargs["period"] = "1m"
         QMT_kwargs.pop("count")
         QMT_kwargs["start_time"] = com_day_volume[0]
