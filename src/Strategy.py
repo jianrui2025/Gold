@@ -97,8 +97,8 @@ class StrategyBase():
 
             # 计算当天开市的时间戳
             morningTimestamp,afternoonTimestamp = self.getTradeTimestampInterval(currentDate)
-            morningTimestamp[0] = morningTimestamp[0] + 2*60
-            afternoonTimestamp[0] = afternoonTimestamp[0] + 2*60
+            morningTimestamp[0] = morningTimestamp[0] + 2*60 # 延迟2分钟开始计算
+            afternoonTimestamp[0] = afternoonTimestamp[0]
 
             while True:
                 currentDate = self.getCurrentDate()
@@ -106,7 +106,6 @@ class StrategyBase():
 
                 # 上午时间段 + 下午时间段
                 if morningTimestamp[0] <= currentTimestamp <= morningTimestamp[1] or afternoonTimestamp[0] <= currentTimestamp <= afternoonTimestamp[1]:
-
                     start = datetime.now()
                     if not self.before_strategy_mark:
                         self.before_strategy_mark = self.before_strategy()
@@ -739,7 +738,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
+            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -837,7 +836,19 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         kwargs["df_k_5m_volume_mean"] = df_k_5m_volume_mean
 
         return kwargs
-        
+
+    def static_HpParam(self,HpParam_dict):
+        tmp = {}
+        tmp["总数"] = len(HpParam_dict)
+        tmp["(有效)"] = len([v for v in HpParam_dict.values() if v["min_price"] > v["preClose"]])
+        tmp["(无效)"] = len([v for v in HpParam_dict.values() if v["min_price"] < v["preClose"]])
+        tmp["金叉线小于0"] = len([v for v in HpParam_dict.values() if v["min_price"] < 0])
+        tmp["金叉线小于收盘线"] = len([v for v in HpParam_dict.values() if v["min_price"] > 0 and v["min_price"] < v["preClose"]])
+        tmp["统计时间"]= self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S')
+
+        self.robot.sendMessage(tmp,self.robot.transMessage_StaticInfo)
+
+
     def before_strategy(self):
 
         # 读取超参数
@@ -854,6 +865,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             j = self.build_current_day_param(i)
             tmp.append(j)
         self.HpParam_dict = {k:v for k,v in zip(self.fund_code_list,tmp)}
+
+        self.static_HpParam(self.HpParam_dict)
 
         self.fund_code_group = []
         for i in range(0,len(self.fund_code_list),50):
