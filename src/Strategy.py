@@ -738,7 +738,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
+            #HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
