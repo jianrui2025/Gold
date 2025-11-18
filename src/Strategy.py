@@ -98,7 +98,7 @@ class StrategyBase():
             # 计算当天开市的时间戳
             morningTimestamp,afternoonTimestamp = self.getTradeTimestampInterval(currentDate)
             morningTimestamp[0] = morningTimestamp[0] + 2*60 # 延迟2分钟开始计算
-            afternoonTimestamp[0] = afternoonTimestamp[0]
+            afternoonTimestamp[0] = afternoonTimestamp[0] + 1*60 # 延迟1分钟开始计算
 
             while True:
                 currentDate = self.getCurrentDate()

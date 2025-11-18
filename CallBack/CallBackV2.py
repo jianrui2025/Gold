@@ -389,7 +389,8 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         self.HyperParam_dict = {
             "mean_long_day":[12,15,18,21,24,27,30,33,36,39,42,45,48,51,54],
             "mean_short_day":[3,6,9,12,15,18,21,24,27,30],
-            "Volume_day":[8,12,16,20,24,28],
+            "Volume_day":[5,8,11,14,17,20,23],
+            "LiangBi":[1.1,1.3,1.5,1.7,1.9,2.1],
             "ShouYi":[0.008],
             "ZhiShun":[-0.032],
         }
@@ -400,11 +401,12 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         #     "mean_long_day":[15],
         #     "mean_short_day":[3],
         #     "Volume_day":[20],
+        #     "LiangBi":[1.1],
         #     "ShouYi":[0.008],
         #     "ZhiShun":[-0.032],
         # }
 
-        self.output_file = "/home/jianrui/workspace/Gold/CallBack/log_MeanLineAndVolume4/{fund_code}"
+        self.output_file = "/home/jianrui/workspace/Gold/CallBack/log_MeanLineAndVolume5/{fund_code}"
         self.max_len = -1
 
     def _request_post(self,**kwargs):
@@ -482,6 +484,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
         mean_long_day = kwrags["mean_long_day"]
         mean_short_day = kwrags["mean_short_day"]
         Volume_day = kwrags["Volume_day"]
+        LiangBi = kwrags["LiangBi"]
         ShouYi = kwrags["ShouYi"]
         ZhiShun = kwrags["ZhiShun"]
         fund_code = kwrags["fund_code"]       
@@ -511,8 +514,8 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
             if single == 0:
                 # 计算交易量平均演变过程 
                 com_day = df_k_1d_key[index_day-Volume_day:index_day]
-                    # 筛选价值上涨的日期。
-                com_day = [i for i in com_day if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
+                # 筛选价值上涨的日期。
+                # com_day = [i for i in com_day if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
                 df_k_5m_divideByDay_tmp = [df_k_5m_divideByDay[i] for i in com_day]
                 df_k_5m_divideByDay_tmp_dict = {}
                 for tmp in df_k_5m_divideByDay_tmp:
@@ -550,7 +553,6 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
                 yesterday = [df_k_1d[i] for i in yesterday_key][0]
                 yesterday_close = yesterday["close"]
 
-
                 # 开始k线遍历价格
                 volume_sum = 0
                 last_diff_price = False
@@ -563,7 +565,7 @@ class CallBackV2_MeanLineAndVolumeV2(CallBackV2Base):
                     if min_price > 0 and \
                             min_price > yesterday_close and \
                             price > min_price and \
-                            volume_sum > df_k_5m_volume_mean[index] and \
+                            volume_sum/df_k_5m_volume_mean[index] > LiangBi and \
                             last_diff_price != True :
                             # and last_diff_price < 0:
                         single = 1
@@ -859,8 +861,8 @@ if __name__ == "__main__":
     # callback.run()
 
     callback = CallBackV2_MeanLineAndVolumeV2()
-    # callback.run()
-    callback.precise()
+    callback.run()
+    # callback.precise()
 
 
         
