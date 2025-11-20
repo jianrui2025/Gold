@@ -98,7 +98,7 @@ class StrategyBase():
             # 计算当天开市的时间戳
             morningTimestamp,afternoonTimestamp = self.getTradeTimestampInterval(currentDate)
             morningTimestamp[0] = morningTimestamp[0] + 2*60 # 延迟2分钟开始计算
-            afternoonTimestamp[0] = afternoonTimestamp[0] + 1*60 # 延迟1分钟开始计算
+            afternoonTimestamp[0] = afternoonTimestamp[0] + 2*60 # 延迟2分钟开始计算
 
             while True:
                 currentDate = self.getCurrentDate()
@@ -738,7 +738,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            #HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
+            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -834,6 +834,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             tmp_sum = tmp_sum + statistics.mean([i["volume"] for i in v])
             df_k_5m_volume_mean[k] = tmp_sum
         kwargs["df_k_5m_volume_mean"] = df_k_5m_volume_mean
+
+        print(kwargs)
 
         return kwargs
 
