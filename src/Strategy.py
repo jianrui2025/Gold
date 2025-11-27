@@ -33,10 +33,13 @@ class StrategyBase():
     def __init__(self,runStrategyInterval):
         self.robot = Robot()
         # self.databaseOperation = DatabaseOperation()
-        self.tradeCalender,self.tradeYear = self.getTradeCalender()
+        self.tradeCalender, self.tradeYear = self.getTradeCalender()
         self.runStrategyInterval = runStrategyInterval # 检测策略的间隔
         self.RANDOM_STR = "ZXCVBNMASDFGHJKLQWERTYUIOP1234567890qwertyuiopasdfghjklzxcvbnm"
         self.before_strategy_mark = False
+
+        self.pro = ts.pro_api('3085222731857622989')
+        self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
 
     def getCurrentDate(self):
         # 读取当前时间，返回年月日时分秒
@@ -49,7 +52,11 @@ class StrategyBase():
         calender = adata.stock.info.trade_calendar(year=year)
         calender = calender.to_dict(orient="records")
         calender ={i["trade_date"]:i for i in calender}
-        return calender,year # 格式：{"trade_date":{"trade_date":"2023-01-01","trade_status":"0","day_week":"1"}}
+        last_calender = adata.stock.info.trade_calendar(year=str(int(year)-1))
+        last_calender = last_calender.to_dict(orient="records")
+        last_calender = {i["trade_date"]:i for i in last_calender}
+        calender = {**calender,**last_calender}
+        return calender, year
     
     def getNextDay(self,date):
         tmp_timestamp = date.timestamp() + 24*60*60
@@ -58,6 +65,14 @@ class StrategyBase():
         nextDay = nextDay + " 00:00:01"
         nextDay = datetime.strptime(nextDay,'%Y-%m-%d %H:%M:%S')
         return nextDay
+    
+    def getyesterday(self,date):
+        tmp_timestamp = date.timestamp() - 24*60*60
+        yesterday = datetime.fromtimestamp(tmp_timestamp)
+        yesterday = yesterday.strftime("%Y-%m-%d")
+        yesterday = yesterday + " 01:00:00"
+        yesterday = datetime.strptime(yesterday,'%Y-%m-%d %H:%M:%S')
+        return yesterday
     
     def getTradeTimestampInterval(self,date):
         # 计算开市的时间戳
@@ -733,19 +748,20 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         self.runStrategyInterval = 30 # 价格检索间隔
         super().__init__(self.runStrategyInterval)
         self.HpParam_path = "./CallBack/conf/MeanLineAndVolume.jsonl"
+        self.static_day = 5 # 统计资金流向的天数
 
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159934.SZ"]
+            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
     def _request_post(self,**kwargs):
         response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
         while response.status_code != 200:
-            time.sleep(range.sample([i for i in range(30,69)],1)[0])
+            time.sleep(random.sample([i for i in range(30,69)],1)[0])
             response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
             log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
         buffer = io.BytesIO(response.content)
@@ -758,6 +774,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
     def build_current_day_param(self,kwargs):
         # 构造检索的参数值
+        fund_code = kwargs["fund_code"]
         mean_long_day = kwargs["mean_long_day"]
         mean_short_day = kwargs["mean_short_day"]
         volume_day = kwargs["Volume_day"]
@@ -766,7 +783,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 从QMT读取行情信息
         QMT_kwargs = {}
         QMT_kwargs["field_list"] = ["time","open","close","low","high","volume","preClose"]
-        QMT_kwargs["stock_code"] = kwargs["fund_code"]
+        QMT_kwargs["stock_code"] = fund_code
         QMT_kwargs["incrementally"] = False
 
         # 获取1d数据
@@ -805,7 +822,6 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         
         # 计算交易量的平均演变过程
         com_day_volume = df_k_1d_key[-volume_day:]
-        com_day_volume_increase = [i for i in com_day_volume if df_k_1d[i]["close"] > df_k_1d[i]["open"]]
         QMT_kwargs["period"] = "1m"
         QMT_kwargs.pop("count")
         QMT_kwargs["start_time"] = com_day_volume[0]
@@ -816,8 +832,6 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         df_k_5m_divideByDay = {}
         for k,v in df_k_5m.items():
             day = k[:8]  # 前8个字符是年月日
-            if day not in com_day_volume_increase:
-                continue
             df_k_5m_divideByDay.setdefault(day,[])
             df_k_5m_divideByDay[day].append(v)
         df_k_5m_key = [i for i in df_k_5m_divideByDay.keys()]
@@ -835,9 +849,37 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             df_k_5m_volume_mean[k] = tmp_sum
         kwargs["df_k_5m_volume_mean"] = df_k_5m_volume_mean
 
-        print(kwargs)
+        # 资金流向情况
+        self.static_day = 5
+        response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json={"reload":False,"fund_code":fund_code})
+        fund_info = response.json()
+        Timestamp = self.getCurrentDate()
+        day_list = []
+        while self.static_day > len(day_list):
+            Timestamp = self.getyesterday(Timestamp)
+            if self.tradeCalender[Timestamp.strftime("%Y-%m-%d")]["trade_status"] == 1:
+                day_list.append(Timestamp.strftime("%Y%m%d"))
+        start_day = day_list[-1]
+        end_day = day_list[0]
+        weight = fund_info["指数权重"]
+        net_mf_amount = 0
+        for we in weight:
+            net_mf_amount += self.get_moneyflow(we["con_code"],start_day,end_day)
+        kwargs["net_mf_amount"] = net_mf_amount
 
         return kwargs
+
+    def get_moneyflow(self,fund_code,start_day,end_day):
+        if fund_code not in self.net_mf_amount_dict:
+            df = self.pro.moneyflow(ts_code=fund_code, start_date=start_day, end_date=end_day)
+            df = df.to_dict(orient="records")
+            net_mf_amount = 0
+            for i in df:
+                net_mf_amount += i["net_mf_amount"]
+            self.net_mf_amount_dict[fund_code] = net_mf_amount
+            time.sleep(0.3)
+        return self.net_mf_amount_dict[fund_code]
+        
 
     def static_HpParam(self,HpParam_dict):
         tmp = {}
@@ -850,13 +892,13 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
         self.robot.sendMessage(tmp,self.robot.transMessage_StaticInfo)
 
-
     def before_strategy(self):
 
         # 读取超参数
         self.HpParam_dict = self.read_HpParam(self.HpParam_path)
         self.fund_code_list = list(self.HpParam_dict.keys())
         self.fund_code_dict = {i:False for i in self.fund_code_list}
+        self.net_mf_amount_dict = {}  # 记录股票资金流入情况的缓存
 
         # with mp.Pool(processes=1) as pool:
         #     tmp = pool.map(self.build_current_day_param,list(self.HpParam_dict.values()))
@@ -897,13 +939,18 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 volume = int(one_code["VOLUME"])/100
                 date_time = int(datetime.strptime(date, '%Y%m%d %H:%M:%S').strftime("%H%M%S"))
                 HpParam = self.HpParam_dict[fund_code]
-                df_k_5m_volume_mean = HpParam["df_k_5m_volume_mean"][(date_time//100)*100]
+                try:
+                    df_k_5m_volume_mean = HpParam["df_k_5m_volume_mean"][(date_time//100)*100]
+                except:
+                    print(HpParam)
+                    raise
                 min_price = HpParam["min_price"]
                 ShouYi = HpParam["ShouYi"]
                 ZhiShun = HpParam["ZhiShun"]
                 mean_keep_day = HpParam["mean_keep_day"]
                 precesion = HpParam["precion"]
                 preClose = HpParam["preClose"]
+                LiangBi = HpParam["LiangBi"]
 
                 # 输出
                 info = copy.deepcopy(HpParam)
@@ -914,12 +961,11 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 log.info(json.dumps(info,ensure_ascii=False))
 
                 # 计算均值 且 成交量大于过去的均值
-                if min_price > 0 and \
-                        price > min_price and \
-                        volume > df_k_5m_volume_mean and \
-                        self.fund_code_dict[fund_code] != True \
+                if          min_price > 0 \
+                        and price > min_price \
+                        and self.fund_code_dict[fund_code] != True \
+                        and volume/df_k_5m_volume_mean > LiangBi \
                         and min_price > preClose :
-                        # and self.fund_code_dict[fund_code] < 0:
                     
                     ShouYi_price = min_price*(1+ShouYi)
                     ZhiShun_price = min_price*(1+ZhiShun)
@@ -930,6 +976,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         "name": name,
                         "收益线" : str(ShouYi_price),
                         "止损线" : str(ZhiShun_price),
+                        "量比" : str(volume/df_k_5m_volume_mean),
                         "平均持有时间": str(mean_keep_day),
                         "回测准确率": str(precesion),
                         "报警时间": self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S')

@@ -209,11 +209,11 @@ class CallBackV2Base():
         # re1 = [i for i in re1 if i["mean_keep_day"]<5]
       
         # 买卖次数最大
-        max_ = -1
-        for i in re1:
-            if i["buy_num"] > max_:
-                max_ = i["buy_num"]
-        re1 = [i for i in re1 if i["buy_num"]==max_]
+        # max_ = -1
+        # for i in re1:
+        #     if i["buy_num"] > max_:
+        #         max_ = i["buy_num"]
+        # re1 = [i for i in re1 if i["buy_num"]==max_]
 
         # precion 最大
         max_ = -1
@@ -223,11 +223,11 @@ class CallBackV2Base():
         re1 = [i for i in re1 if i["precion"]==max_]
 
         # 筛选间隔长度最大
-        # max_ = -1
-        # for i in re1:
-        #     if i["mean_long_day"] - i["mean_short_day"] > max_:
-        #         max_ = i["mean_long_day"] - i["mean_short_day"]
-        # re1 = [i for i in re1 if i["mean_long_day"] - i["mean_short_day"]==max_]
+        max_ = -1
+        for i in re1:
+            if i["mean_long_day"] - i["mean_short_day"] > max_:
+                max_ = i["mean_long_day"] - i["mean_short_day"]
+        re1 = [i for i in re1 if i["mean_long_day"] - i["mean_short_day"]==max_]
         
         # last_money最大的参数。
         max_ = -1
@@ -248,7 +248,7 @@ class CallBackV2Base():
             precise = pool.map(self.select_conf, fund_path_list)
             numm = 0
             numm_none = 0
-            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v13.jsonl","w") as f:
+            with open("/home/jianrui/workspace/Gold/CallBack/conf/MeanLineAndVolume_v14.jsonl","w") as f:
                 for i in precise:
                     if i:
                         # i.pop("log")
@@ -861,8 +861,8 @@ if __name__ == "__main__":
     # callback.run()
 
     callback = CallBackV2_MeanLineAndVolumeV2()
-    callback.run()
-    # callback.precise()
+    # callback.run()
+    callback.precise()
 
 
         

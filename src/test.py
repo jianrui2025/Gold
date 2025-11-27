@@ -51,16 +51,20 @@
 #     re = re + [json.loads(i.strip()) for i in f]
 # print(len(re))
 
-import json
-with open("../result.json_20250805_20250812","r") as f:
-    re = [json.loads(i.strip()) for i in f]
+# import json
+# with open("../result.json_20250805_20250812","r") as f:
+#     re = [json.loads(i.strip()) for i in f]
 
-re.sort(key=lambda x: x["shouyi"],reverse=True)
-re = [i for i in re if i["stock_num_lei"]==15000]
-for i in re[:100]:
-    print(i)
-max_line = re[0]
-for i in re[1:]:
-    if i["shouyi"] > max_line["shouyi"]:
-        max_line = i
-print(max_line)
+# re.sort(key=lambda x: x["shouyi"],reverse=True)
+# re = [i for i in re if i["stock_num_lei"]==15000]
+# for i in re[:100]:
+#     print(i)
+# max_line = re[0]
+# for i in re[1:]:
+#     if i["shouyi"] > max_line["shouyi"]:
+#         max_line = i
+# print(max_line)
+
+import requests
+response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json={"reload":True,"fund_code":"515120.SH"})
+print(response.json())
