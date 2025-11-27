@@ -754,7 +754,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
             HpParam_list = [json.loads(i.strip()) for i in f]
-            HpParam_list = [i for i in HpParam_list if i["fund_code"]== "159766.SZ"]
+            # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "563020.SH"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
     
@@ -771,6 +771,16 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         index.sort(key=lambda x:x)
         log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(index))
         return df
+
+    def _request_post_index_weight(self,**kwargs):
+        response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
+        while response.status_code != 200:
+            time.sleep(random.sample([i for i in range(30,69)],1)[0])
+            response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
+            log.info("该参数在获取数据时，暴露问题:"+kwargs["fund_code"])
+        fund_info = response.json()
+        log.info("数据获取成功，参数如下:"+kwargs["fund_code"])
+        return fund_info
 
     def build_current_day_param(self,kwargs):
         # 构造检索的参数值
@@ -851,8 +861,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
 
         # 资金流向情况
         self.static_day = 5
-        response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json={"reload":False,"fund_code":fund_code})
-        fund_info = response.json()
+        fund_info = self._request_post_index_weight(**{"reload":False,"fund_code":fund_code})
         Timestamp = self.getCurrentDate()
         day_list = []
         while self.static_day > len(day_list):
@@ -861,10 +870,18 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 day_list.append(Timestamp.strftime("%Y%m%d"))
         start_day = day_list[-1]
         end_day = day_list[0]
-        weight = fund_info["指数权重"]
-        net_mf_amount = 0
-        for we in weight:
-            net_mf_amount += self.get_moneyflow(we["con_code"],start_day,end_day)
+        if "指数权重" in fund_info and fund_info["指数权重"] != "无":
+            weight = fund_info["指数权重"]
+            net_mf_amount = 0
+            for we in weight:
+                net_mf_amount += self.get_moneyflow(we["con_code"],start_day,end_day)
+        elif "指数权重" in fund_info and fund_info["指数权重"] == "无":
+            net_mf_amount = -9999
+            print(fund_info)
+            print("该指数不再权重计算范围内")
+        else:
+            net_mf_amount = 0
+            print(fund_info)
         kwargs["net_mf_amount"] = net_mf_amount
 
         return kwargs
@@ -877,7 +894,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             for i in df:
                 net_mf_amount += i["net_mf_amount"]
             self.net_mf_amount_dict[fund_code] = net_mf_amount
-            time.sleep(0.3)
+            time.sleep(0.05)
         return self.net_mf_amount_dict[fund_code]
         
 
