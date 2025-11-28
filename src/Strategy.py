@@ -894,7 +894,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             for i in df:
                 net_mf_amount += i["net_mf_amount"]
             self.net_mf_amount_dict[fund_code] = net_mf_amount
-            time.sleep(0.05)
+            time.sleep(0.15)
         return self.net_mf_amount_dict[fund_code]
         
 
@@ -956,11 +956,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 volume = int(one_code["VOLUME"])/100
                 date_time = int(datetime.strptime(date, '%Y%m%d %H:%M:%S').strftime("%H%M%S"))
                 HpParam = self.HpParam_dict[fund_code]
-                try:
-                    df_k_5m_volume_mean = HpParam["df_k_5m_volume_mean"][(date_time//100)*100]
-                except:
-                    print(HpParam)
-                    raise
+                df_k_5m_volume_mean = HpParam["df_k_5m_volume_mean"][(date_time//100)*100]
                 min_price = HpParam["min_price"]
                 ShouYi = HpParam["ShouYi"]
                 ZhiShun = HpParam["ZhiShun"]
@@ -968,6 +964,7 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                 precesion = HpParam["precion"]
                 preClose = HpParam["preClose"]
                 LiangBi = HpParam["LiangBi"]
+                net_mf_amount = HpParam["net_mf_amount"]
 
                 # 输出
                 info = copy.deepcopy(HpParam)
@@ -982,7 +979,8 @@ class Strategy_MeanLineAndVolume(StrategyBase):
                         and price > min_price \
                         and self.fund_code_dict[fund_code] != True \
                         and volume/df_k_5m_volume_mean > LiangBi \
-                        and min_price > preClose :
+                        and min_price > preClose \
+                        and net_mf_amount >= 0:
                     
                     ShouYi_price = min_price*(1+ShouYi)
                     ZhiShun_price = min_price*(1+ZhiShun)
