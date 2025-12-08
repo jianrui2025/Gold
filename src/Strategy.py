@@ -1078,7 +1078,7 @@ class Strategy_TaoLi(StrategyBase):
 
 class Strategy_price_linear_fit(StrategyBase):
     def __init__(self):
-        self.runStrategyInterval = 30 # 价格检索间隔
+        self.runStrategyInterval = 6*60*60 # 价格检索间隔 6个小时
         super().__init__(self.runStrategyInterval)
         self.pro = ts.pro_api('3085222731857622989')
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
@@ -1150,7 +1150,7 @@ class Strategy_price_linear_fit(StrategyBase):
 
 
     def after_strategy(self):
-        # time.sleep(3*60*60)
+        time.sleep(3*60*60)
         self.read_fund_list()
         last_daies = self.get_last_daies()
         hit_fund_code = []
