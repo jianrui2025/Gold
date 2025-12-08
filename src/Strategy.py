@@ -1126,7 +1126,7 @@ class Strategy_price_linear_fit(StrategyBase):
             high_index.append(20-1)
         elif price[-1]["close"] < price[-2]["close"]:
             low.append(price[-1]["close"])
-            low.append(20-1)
+            low_index.append(20-1)
 
         return high,high_index,low,low_index
 
@@ -1160,6 +1160,7 @@ class Strategy_price_linear_fit(StrategyBase):
         hit_fund_code = []
         for fund in self.fund_list:
             price = self.pro.fund_daily(ts_code=fund["ts_code"],start_date=last_daies[-1],end_date=last_daies[0]).to_dict(orient="records")
+            time.sleep(0.012)
             high,high_index,low,low_index = self.divide_high_and_low(price=price)
             high_a, high_b = self.linear_fit(high_index,high)
             low_a, low_b = self.linear_fit(low_index,low)

@@ -356,7 +356,7 @@ class fund_amount_and_price(base_amount_and_price):
                         index_delta_closeprice[stock["ts_code"]].append(abs(stock["close"]-stock["pre_close"]))
             index_delta_closeprice_mean = {k:statistics.mean(v) for k,v in index_delta_closeprice.items()}
 
-            
+
 
             # 计算资金流向前的系数
             days = search_days[-1:]
@@ -387,9 +387,10 @@ class fund_amount_and_price(base_amount_and_price):
                 price = self.pro.fund_daily(ts_code=fund_code,trade_date=date).to_dict(orient="records")[0]
             except:
                 print("当前时间，fund无价格",fund_code,date)
-                continue
-            self.tensorboard.addScalarDict(tag=self.fund_code+"/"+self.dir_name+"/price",scalar_dict={"open":price["open"],"close":price["close"]},index=num,timestamp=timestamp)
-            time.sleep(0.12)
+                price = {"open":0,"close":0}
+
+            self.tensorboard.addScalarDict(tag=self.fund_code+"/"+self.dir_name+"/price",scalar_dict={"open":price["open"],"close":price["close"]}, index=num, timestamp=timestamp)
+            time.sleep(0.012)
 
 class Stock_amount_and_price(base_amount_and_price):
     def __init__(self):
@@ -440,7 +441,7 @@ class Stock_amount_and_price(base_amount_and_price):
             self.tensorboard.addScalarDict(tag=self.stock_code+"/volume",scalar_dict={"volume":current_daily["vol"],"mean_volume":mean_volume},index=num, timestamp=timestamp)
             self.tensorboard.addScalarDict(tag=self.stock_code+"/delta_price",scalar_dict={"mean_delta_price":mean_delta_price,"delta_price":delta_price},index=num, timestamp=timestamp)
             self.tensorboard.addScalarDict(tag=self.stock_code+"/price",scalar_dict={"open":current_daily["open"],"close":current_daily["close"]},index=num, timestamp=timestamp)
-            time.sleep(0.12)
+            time.sleep(0.012)
 
 
 
