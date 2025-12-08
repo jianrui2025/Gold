@@ -164,8 +164,9 @@ class StrategyBase():
                     log.info(":休眠到开市！")
                     currentDate = self.getCurrentDate()
                     currentTimestamp = currentDate.timestamp()
-                    time.sleep(morningTimestamp[0] - currentTimestamp)
-                    log.info(":苏醒")
+                    if morningTimestamp[0] - currentTimestamp > 0:
+                        time.sleep(morningTimestamp[0] - currentTimestamp)
+                        log.info(":苏醒")
                     
                 # 中午休市时间段
                 if morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
@@ -174,8 +175,9 @@ class StrategyBase():
                     log.info(":中午休市中,休眠到下午开市")
                     currentDate = self.getCurrentDate()
                     currentTimestamp = currentDate.timestamp()
-                    time.sleep(afternoonTimestamp[0]-currentTimestamp)
-                    log.info(":苏醒")
+                    if afternoonTimestamp[0]-currentTimestamp:
+                        time.sleep(afternoonTimestamp[0]-currentTimestamp)
+                        log.info(":苏醒")
 
                 # 下午闭市后时间段
                 if afternoonTimestamp[1] < currentTimestamp:
@@ -186,9 +188,10 @@ class StrategyBase():
                     currentDate = self.getCurrentDate()
                     currentTimestamp = currentDate.timestamp()
                     currentTimestamp = currentDate.timestamp()
-                    time.sleep(nextDayTimestamp - currentTimestamp)
-                    log.info(":今日已经闭市，休眠到下一日")
-                    log.info(":苏醒")
+                    if nextDayTimestamp - currentTimestamp > 0:
+                        time.sleep(nextDayTimestamp - currentTimestamp)
+                        log.info(":今日已经闭市，休眠到下一日")
+                        log.info(":苏醒")
                     break
 
 class Strategy_FluctuationAndNorm(StrategyBase):
