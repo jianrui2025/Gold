@@ -159,6 +159,28 @@ class Robot():
         }
         return result
 
+    def transMessage_price_line_fit(self,data):
+        title_mode = "线性拟合信息总览："
+        model_b = '<font color="warning">{}</font>'
+        mode_a = '> {key}:<font color="warning">{value}</font>'
+
+        final_dict = {}
+        for k,v in data.items():
+            final_dict[k] = mode_a.format(key=k,value=v)
+
+        final_list = []
+        final_list.append(title_mode)
+        for k,v in final_dict.items():
+            final_list.append(final_dict[k])
+
+        result = {
+            "msgtype" : "markdown",
+            "markdown": {
+                "content": "\n".join(final_list)
+            }
+        }
+        return result
+
     def sendMessage(self,data,func=None):
         data = func(data)
         headers_check = {

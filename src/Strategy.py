@@ -25,6 +25,8 @@ ts.realtime_quote = realtime_quote
 ts.realtime_list = realtime_list
 ts.realtime_tick = realtime_tick
 
+from WriteToTensorboard import fund_amount_and_price
+
 logging.basicConfig(format='%(asctime)s %(message)s')
 log = logging.getLogger(name="log")
 log.setLevel(level=logging.INFO)
@@ -90,12 +92,38 @@ class StrategyBase():
     def before_strategy(self):
         pass
 
-    # @abstractclassmethod
     def strategy(self):
         pass
 
     def after_strategy(self):
         pass
+
+    def Timestamp_fix(self,morningTimestamp,afternoonTimestamp):
+        return morningTimestamp,afternoonTimestamp
+
+    def _request_post(self,**kwargs):
+        response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
+        while response.status_code != 200:
+            time.sleep(random.sample([i for i in range(30,69)],1)[0])
+            response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
+            log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
+        buffer = io.BytesIO(response.content)
+        df = pd.read_pickle(buffer)
+        index = set([i[:8] for i in df.index.to_list()])
+        index = [int(i) for i in index]
+        index.sort(key=lambda x:x)
+        log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(index))
+        return df
+    
+    def _request_post_index_weight(self,**kwargs):
+        response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
+        while response.status_code != 200:
+            time.sleep(random.sample([i for i in range(30,69)],1)[0])
+            response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
+            log.info("该参数在获取数据时，暴露问题:"+kwargs["fund_code"])
+        fund_info = response.json()
+        log.info("数据获取成功，参数如下:"+kwargs["fund_code"])
+        return fund_info
 
     def run(self):
         while True:
@@ -112,14 +140,14 @@ class StrategyBase():
 
             # 计算当天开市的时间戳
             morningTimestamp,afternoonTimestamp = self.getTradeTimestampInterval(currentDate)
-            morningTimestamp[0] = morningTimestamp[0] + 2*60 # 延迟2分钟开始计算
-            afternoonTimestamp[0] = afternoonTimestamp[0] + 2*60 # 延迟2分钟开始计算
+            # 对监控时间进行微调
+            morningTimestamp,afternoonTimestamp = self.Timestamp_fix(morningTimestamp,afternoonTimestamp)
 
             while True:
                 currentDate = self.getCurrentDate()
                 currentTimestamp = currentDate.timestamp()
 
-                # 上午时间段 + 下午时间段
+                # 上午开市时间段 + 下午开市时间段
                 if morningTimestamp[0] <= currentTimestamp <= morningTimestamp[1] or afternoonTimestamp[0] <= currentTimestamp <= afternoonTimestamp[1]:
                     start = datetime.now()
                     if not self.before_strategy_mark:
@@ -130,27 +158,27 @@ class StrategyBase():
                     if self.runStrategyInterval - delte.seconds > 0:
                         time.sleep(self.runStrategyInterval - delte.seconds)
 
-                # 上午开市时间段 和 中午休市时间段
-                elif currentTimestamp < morningTimestamp[0] or morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
-                    if currentTimestamp < morningTimestamp[0]:
+                # 上午开市前时间
+                if currentTimestamp < morningTimestamp[0]:
+                    self.before_strategy_mark = self.before_strategy()
+                    log.info(":休眠到开市！")
+                    currentDate = self.getCurrentDate()
+                    currentTimestamp = currentDate.timestamp()
+                    time.sleep(morningTimestamp[0] - currentTimestamp)
+                    log.info(":苏醒")
+                    
+                # 中午休市时间段
+                if morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
+                    if not self.before_strategy_mark:
                         self.before_strategy_mark = self.before_strategy()
-                        log.info(":休眠到开市！")
-                        currentDate = self.getCurrentDate()
-                        currentTimestamp = currentDate.timestamp()
-                        time.sleep(morningTimestamp[0] - currentTimestamp)
-                        log.info(":苏醒")
+                    log.info(":中午休市中,休眠到下午开市")
+                    currentDate = self.getCurrentDate()
+                    currentTimestamp = currentDate.timestamp()
+                    time.sleep(afternoonTimestamp[0]-currentTimestamp)
+                    log.info(":苏醒")
 
-                    elif morningTimestamp[1] < currentTimestamp < afternoonTimestamp[0]:
-                        if not self.before_strategy_mark:
-                            self.before_strategy_mark = self.before_strategy()
-                        log.info(":中午休市中,休眠到下午开市")
-                        currentDate = self.getCurrentDate()
-                        currentTimestamp = currentDate.timestamp()
-                        time.sleep(afternoonTimestamp[0]-currentTimestamp)
-                        log.info(":苏醒")
-
-                # 下午闭市时间段
-                elif afternoonTimestamp[1] < currentTimestamp:
+                # 下午闭市后时间段
+                if afternoonTimestamp[1] < currentTimestamp:
                     self.after_strategy()
                     log.info(":今日已经闭市，休眠到下一日")
                     currentDate = self.getCurrentDate()
@@ -750,6 +778,11 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         self.HpParam_path = "./CallBack/conf/MeanLineAndVolume.jsonl"
         self.static_day = 5 # 统计资金流向的天数
 
+    def Timestamp_fix(self,morningTimestamp,afternoonTimestamp):
+        morningTimestamp[0] = morningTimestamp[0] + 2*60 # 延迟2分钟开始计算
+        afternoonTimestamp[0] = afternoonTimestamp[0] + 2*60 # 延迟2分钟开始计算
+        return morningTimestamp,afternoonTimestamp
+
     def read_HpParam(self,HpParam_path):
         # 读取超参数配置信息
         with open(HpParam_path,"r") as f:
@@ -757,30 +790,6 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             # HpParam_list = [i for i in HpParam_list if i["fund_code"]== "563020.SH"]
         HpParam_dict = {i["fund_code"]:i for i in HpParam_list}
         return HpParam_dict
-    
-    def _request_post(self,**kwargs):
-        response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
-        while response.status_code != 200:
-            time.sleep(random.sample([i for i in range(30,69)],1)[0])
-            response = requests.post("http://106.13.59.142:6010/download_history_data",json=kwargs)
-            log.info("该参数在获取数据时，暴露问题:"+kwargs["stock_code"])
-        buffer = io.BytesIO(response.content)
-        df = pd.read_pickle(buffer)
-        index = set([i[:8] for i in df.index.to_list()])
-        index = [int(i) for i in index]
-        index.sort(key=lambda x:x)
-        log.info("数据获取成功，参数如下:"+kwargs["stock_code"]+","+str(index))
-        return df
-
-    def _request_post_index_weight(self,**kwargs):
-        response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
-        while response.status_code != 200:
-            time.sleep(random.sample([i for i in range(30,69)],1)[0])
-            response = requests.post("http://106.13.59.142:6010/get_fund_info_with_index_weight",json=kwargs)
-            log.info("该参数在获取数据时，暴露问题:"+kwargs["fund_code"])
-        fund_info = response.json()
-        log.info("数据获取成功，参数如下:"+kwargs["fund_code"])
-        return fund_info
 
     def build_current_day_param(self,kwargs):
         # 构造检索的参数值
@@ -897,14 +906,18 @@ class Strategy_MeanLineAndVolume(StrategyBase):
             time.sleep(0.15)
         return self.net_mf_amount_dict[fund_code]
         
-
     def static_HpParam(self,HpParam_dict):
         tmp = {}
-        tmp["总数"] = len(HpParam_dict)
-        tmp["(有效)"] = len([v for v in HpParam_dict.values() if v["min_price"] > v["preClose"]])
-        tmp["(无效)"] = len([v for v in HpParam_dict.values() if v["min_price"] < v["preClose"]])
-        tmp["金叉线小于0"] = len([v for v in HpParam_dict.values() if v["min_price"] < 0])
-        tmp["金叉线小于收盘线"] = len([v for v in HpParam_dict.values() if v["min_price"] > 0 and v["min_price"] < v["preClose"]])
+        tmp_param_list = [v for v in HpParam_dict.values()]
+        tmp["总数"] = len(tmp_param_list)
+        tmp["(有效)"] = ""
+        tmp["(无效)"] = ""
+        tmp_param_list = [i for i in tmp_param_list if i["min_price"] >= i["preClose"]]
+        tmp["金叉线小于收盘线"] = tmp["总数"] - len(tmp_param_list)
+        tmp_param_list = [i for i in tmp_param_list if i["net_mf_amount"] < 0 ]
+        tmp["资金流向为负数"] = tmp["总数"] - len(tmp_param_list)
+        tmp["(有效)"] = len(tmp_param_list)
+        tmp["(无效)"] = tmp["总数"] - tmp["(有效)"]
         tmp["统计时间"]= self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S')
 
         self.robot.sendMessage(tmp,self.robot.transMessage_StaticInfo)
@@ -938,7 +951,6 @@ class Strategy_MeanLineAndVolume(StrategyBase):
         for fund_codes in self.fund_code_group:
             try:
                 df = ts.realtime_quote(ts_code=",".join(fund_codes), src='sina')
-                df.to_json("tmp.json",orient="records",lines=True)
             except Exception as e:
                 data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
                 self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
@@ -1004,12 +1016,179 @@ class Strategy_MeanLineAndVolume(StrategyBase):
     def after_strategy(self):
         pass
 
+class Strategy_TaoLi(StrategyBase):
+    def __init__(self):
+        self.runStrategyInterval = 300
+        super().__init__(self.runStrategyInterval)
+        self.conf_path = "./conf/wornning.json"
+
+    def read_conf(self,conf_path):
+        with open(conf_path,"r") as f:
+            conf = [json.loads(i.strip()) for i in f]
+            conf = [i for i in conf if "type" in i]
+            conf = [i for i in conf if i["type"]=="套利检测"]
+        self.conf = {i["id"]:i for i in conf}
+
+    def strategy(self):
+        self.read_conf(self.conf_path)
+        currentday = self.getCurrentDate()
+        yesterday = self.getyesterday(currentday).strftime("%Y%m%d")
+        QMT_kwargs = {}
+        QMT_kwargs["field_list"] = ["time","open","close","low","high","volume","preClose"]
+        QMT_kwargs["incrementally"] = False
+        for k,v in self.conf.items():
+            fund_code = v["fund_code"]
+
+            # 收盘价
+            QMT_kwargs["stock_code"] = fund_code
+            QMT_kwargs["start_time"] = yesterday
+            QMT_kwargs["end_time"] = yesterday
+            QMT_kwargs["period"] = "1d"
+            fund_preClose = self._request_post(**QMT_kwargs).to_dict(orient="records")[0]["close"]
+
+            # 指数成分和权重
+            index2weight = self._request_post_index_weight(**{"fund_code":fund_code,"reload":True})["指数权重"]
+            index2weight = {i["con_code"]:i["weight"]/100 for i in index2weight}
+            indexs = [i for i in index2weight.keys()]
+
+            # 获取开盘价
+            try:
+                df = ts.realtime_quote(ts_code=",".join(indexs), src='sina')
+                df = df.to_dict(orient="records")
+            except Exception as e:
+                data = {"date":self.getCurrentDate().strftime('%Y-%m-%d %H:%M:%S'),"错误类型":str(e)}
+                self.robot.sendMessage(data, self.robot.transMessage_dataCraw )
+                time.sleep(60)
+                continue
+
+            # 测试效果
+            for i in df:
+                print(i)
+
+
+
+
+    def Timestamp_fix(self,morningTimestamp,afternoonTimestamp):
+        morningTimestamp[1] = morningTimestamp[0]
+        morningTimestamp[0] = morningTimestamp[0] - 290 # 9点25分10秒开始。
+        afternoonTimestamp[0] = morningTimestamp[1] + 1
+        afternoonTimestamp[1] = morningTimestamp[1] + 2
+
+        return morningTimestamp,afternoonTimestamp
+
+class Strategy_price_linear_fit(StrategyBase):
+    def __init__(self):
+        self.runStrategyInterval = 30 # 价格检索间隔
+        super().__init__(self.runStrategyInterval)
+        self.pro = ts.pro_api('3085222731857622989')
+        self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
+        self.fund_list_path = "./conf/fund_info_with_index_weight.json"
+        self.last_daies = 20
+        self.write = fund_amount_and_price()
+        self.hit_fund_code = []
+
+
+    def read_fund_list(self):
+        with open(self.fund_list_path,"r") as f:
+            fund_list = [json.loads(i.strip()) for i in f]
+        self.fund_list = [i for i in fund_list if "index_weight" in i]
+
+    def get_last_daies(self):
+        current_date = self.getCurrentDate()
+        trade_calendar_dict, year = self.getTradeCalender()
+        last_daies = []
+        while len(last_daies) < self.last_daies:
+            current_date_str = current_date.strftime('%Y-%m-%d')
+            if trade_calendar_dict[current_date_str]["trade_status"] == 1:
+                last_daies.append(current_date.strftime('%Y%m%d'))
+            current_date = self.getyesterday(current_date)
+        return last_daies
+
+    def divide_high_and_low(self,price):
+        price.sort(key=lambda x: int(x["trade_date"]))
+        high = []
+        high_index = []
+        low = []
+        low_index = []
+        for i in range(1,len(price)-1):
+            if price[i]["close"] > price[i-1]["close"] and price[i]["close"] > price[i+1]["close"]:
+                high.append(price[i]["close"])
+                high_index.append(i)
+            elif price[i]["close"] < price[i-1]["close"] and price[i]["close"] < price[i+1]["close"]:
+                low.append(price[i]["close"])
+                low_index.append(i)
+        if price[-1]["close"] > price[-2]["close"]:
+            high.append(price[-1]["close"])
+            high_index.append(20-1)
+        elif price[-1]["close"] < price[-2]["close"]:
+            low.append(price[-1]["close"])
+            low.append(20-1)
+
+        return high,high_index,low,low_index
+
+    def linear_fit(self, x, y):
+        """
+        对给定的 x 和 y 数据进行线性拟合（y = a*x + b）
+
+        参数:
+            x (array-like): 自变量数据
+            y (array-like): 因变量数据
+            plot (bool): 是否绘制拟合曲线
+
+        返回:
+            predict (function): 输入新的 x 值返回预测 y 值的函数
+        """
+        # 转换为numpy数组
+        x = np.array(x)
+        y = np.array(y)
+
+        # 使用最小二乘法拟合： y = a*x + b
+        A = np.vstack([x, np.ones(len(x))]).T
+        a, b = np.linalg.lstsq(A, y, rcond=None)[0]
+
+        return  a, b
+
+
+    def after_strategy(self):
+        # time.sleep(3*60*60)
+        self.read_fund_list()
+        last_daies = self.get_last_daies()
+        hit_fund_code = []
+        for fund in self.fund_list:
+            price = self.pro.fund_daily(ts_code=fund["ts_code"],start_date=last_daies[-1],end_date=last_daies[0]).to_dict(orient="records")
+            high,high_index,low,low_index = self.divide_high_and_low(price=price)
+            high_a, high_b = self.linear_fit(high_index,high)
+            low_a, low_b = self.linear_fit(low_index,low)
+            if high_a > 0 and low_a > 0:
+                self.write.run(fund["ts_code"],end_date=last_daies[0])
+                hit_fund_code.append(fund["ts_code"])
+        info = {}
+        tmp = [i for i in hit_fund_code if i not in self.hit_fund_code]
+        self.hit_fund_code = self.hit_fund_code + tmp
+        info["今日命中数量"] = len(hit_fund_code)
+        info["新增数量"] = len(tmp)
+        info["新增详情"] = ",".join(tmp)
+        info["date"] = last_daies[0]
+        self.robot.sendMessage(info, self.robot.transMessage_price_line_fit)
+
+
+
+
+    
+
 if __name__ == "__main__":
-    strategy = Strategy_MeanLineAndVolume()
+    pass
+    # strategy = Strategy_MeanLineAndVolume()
     # strategy.run()
-    strategy.before_strategy()
-    # print(strategy.HpParam_dict)
+    # strategy.before_strategy()
+
     # strategy.strategy()
+    # strategy.after_strategy()
+
+    # strategy = Strategy_TaoLi()
+    # strategy.run()
+
+    # strategy = Strategy_price_linear_fit()
     # strategy.after_strategy()
 
             
