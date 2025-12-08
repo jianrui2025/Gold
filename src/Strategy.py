@@ -1095,7 +1095,7 @@ class Strategy_price_linear_fit(StrategyBase):
     def read_fund_list(self):
         with open(self.fund_list_path,"r") as f:
             fund_list = [json.loads(i.strip()) for i in f]
-        self.fund_list = [i for i in fund_list if "index_weight" in i]
+        self.fund_list = [i for i in fund_list if "index_weight" in i and (i["index_weight"][0]["con_code"].endswith("SH") or i["index_weight"][0]["con_code"].endswith("SZ"))]
 
     def get_last_daies(self):
         current_date = self.getCurrentDate()
