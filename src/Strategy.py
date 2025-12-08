@@ -179,14 +179,15 @@ class StrategyBase():
 
                 # 下午闭市后时间段
                 if afternoonTimestamp[1] < currentTimestamp:
-                    self.after_strategy()
-                    log.info(":今日已经闭市，休眠到下一日")
                     currentDate = self.getCurrentDate()
                     nextDay = self.getNextDay(currentDate)
                     nextDayTimestamp = nextDay.timestamp()
+                    self.after_strategy()
+                    currentDate = self.getCurrentDate()
                     currentTimestamp = currentDate.timestamp()
                     currentTimestamp = currentDate.timestamp()
                     time.sleep(nextDayTimestamp - currentTimestamp)
+                    log.info(":今日已经闭市，休眠到下一日")
                     log.info(":苏醒")
                     break
 
@@ -1078,7 +1079,7 @@ class Strategy_TaoLi(StrategyBase):
 
 class Strategy_price_linear_fit(StrategyBase):
     def __init__(self):
-        self.runStrategyInterval = 6*60*60 # 价格检索间隔 6个小时
+        self.runStrategyInterval = 60 # 价格检索间隔 6个小时
         super().__init__(self.runStrategyInterval)
         self.pro = ts.pro_api('3085222731857622989')
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
