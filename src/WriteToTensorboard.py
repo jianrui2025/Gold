@@ -390,7 +390,7 @@ class fund_amount_and_price(base_amount_and_price):
                 price = {"open":0,"close":0}
 
             self.tensorboard.addScalarDict(tag=self.fund_code+"/"+self.dir_name+"/price",scalar_dict={"open":price["open"],"close":price["close"]}, index=num, timestamp=timestamp)
-            time.sleep(0.012)
+            time.sleep(0.12)
 
 class Stock_amount_and_price(base_amount_and_price):
     def __init__(self):
@@ -441,7 +441,7 @@ class Stock_amount_and_price(base_amount_and_price):
             self.tensorboard.addScalarDict(tag=self.stock_code+"/volume",scalar_dict={"volume":current_daily["vol"],"mean_volume":mean_volume},index=num, timestamp=timestamp)
             self.tensorboard.addScalarDict(tag=self.stock_code+"/delta_price",scalar_dict={"mean_delta_price":mean_delta_price,"delta_price":delta_price},index=num, timestamp=timestamp)
             self.tensorboard.addScalarDict(tag=self.stock_code+"/price",scalar_dict={"open":current_daily["open"],"close":current_daily["close"]},index=num, timestamp=timestamp)
-            time.sleep(0.012)
+            time.sleep(0.12)
 
 
 
@@ -450,7 +450,7 @@ class Stock_amount_and_price(base_amount_and_price):
 
 if __name__ == "__main__":
     writer = fund_amount_and_price()
-    writer.run("515120.SH",end_date="20251205")
+    writer.run("515120.SH",end_date="20251208")
 
     # writer = Stock_amount_and_price()
     # writer.run("603259.SH", end_date="20251205")

@@ -166,12 +166,37 @@ def build_project_fund_index_weight_tuahre(all_code_path, index_weight_path, fun
         for i in fund_info_with_index:
             f.write(json.dumps(i,ensure_ascii=False)+"\n")
 
+def selece_index_weight_for_fund(fund_info_with_index_weight_path,fund_info_with_index_weight_only_path,trade_date):
+    with open(fund_info_with_index_weight_path,"r") as f:
+        re = [json.loads(i.strip()) for i in f]
+    index_dict = {}
+    tmp = []
+    for i in re:
+        if "index_weight" in i:
+            index_dict.setdefault(i["index_code"],[])
+            index_dict[i["index_code"]].append(i)
+    for index,value in index_dict.items():
+        print(index)
+        max_amount = 0
+        fund = ""
+        for v in value:
+            df = pro.fund_daily(ts_code=v["ts_code"],trade_date=trade_date).to_dict(orient="records")[0]
+            time.sleep(0.12)
+            if max_amount < df["amount"]:
+                max_amount = df["amount"]
+                fund = v
+        tmp.append(fund)
+    with open(fund_info_with_index_weight_only_path,"w") as f:
+        for i in tmp:
+            f.write(json.dumps(i,ensure_ascii=False)+"\n") 
+        
+
 if __name__ == "__main__":
     pro = ts.pro_api('3085222731857622989')
     pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
 
-    start_stage = 1
-    end_stage = 3
+    start_stage = 4
+    end_stage = 4
 
     # 获取etf全部票号代码
     all_code_path = "../conf/all_etf_code_info.json"
@@ -191,3 +216,10 @@ if __name__ == "__main__":
     if start_stage <= 3 and end_stage >= 3:
         build_project_fund_index_weight_tuahre(all_code_path, index_weight_path, fund_info_with_index_weight_path)
         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),":第三步完成")
+
+    # 将etf按照对应的标的进行归类，并从中挑选成交量最大的基金
+    fund_info_with_index_weight_only_path = "../conf/fund_info_with_index_weight_only.json"
+    trade_date = "20251208"
+    if start_stage <= 4 and end_stage >= 4:
+        selece_index_weight_for_fund(fund_info_with_index_weight_path, fund_info_with_index_weight_only_path, trade_date)
+        print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),":第四步完成")

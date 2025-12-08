@@ -1086,7 +1086,7 @@ class Strategy_price_linear_fit(StrategyBase):
         super().__init__(self.runStrategyInterval)
         self.pro = ts.pro_api('3085222731857622989')
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
-        self.fund_list_path = "./conf/fund_info_with_index_weight.json"
+        self.fund_list_path = "./conf/fund_info_with_index_weight_only.json"
         self.last_daies = 20
         self.write = fund_amount_and_price()
         self.hit_fund_code = []
@@ -1160,7 +1160,7 @@ class Strategy_price_linear_fit(StrategyBase):
         hit_fund_code = []
         for fund in self.fund_list:
             price = self.pro.fund_daily(ts_code=fund["ts_code"],start_date=last_daies[-1],end_date=last_daies[0]).to_dict(orient="records")
-            time.sleep(0.012)
+            time.sleep(0.12)
             high,high_index,low,low_index = self.divide_high_and_low(price=price)
             high_a, high_b = self.linear_fit(high_index,high)
             low_a, low_b = self.linear_fit(low_index,low)
