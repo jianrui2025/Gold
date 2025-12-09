@@ -273,7 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        # self.tensorboard.emptyTensorboard()
+        self.tensorboard.emptyTensorboard()
         self.stock_daily = {}
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
@@ -319,7 +319,7 @@ class fund_amount_and_price(base_amount_and_price):
         fund_code_info = self.pro.etf_basic(ts_code=fund_code)
         fund_code_info = fund_code_info.to_dict(orient="records")[0]
         index_code = fund_code_info["index_code"]
-        
+
         # 查询已经写入tensorboard的信息。
         dete2step,date2net_mf_amount_a_year = self.tensorboard.search_log_dir(self.log_dir,fund_code,"net_mf_amount_a_year")
 
@@ -343,9 +343,8 @@ class fund_amount_and_price(base_amount_and_price):
             index_weight = self.search_CondexAndWeight(date,index_code)
             index_weight = {i["con_code"]:i["weight"] for i in index_weight}
             stock_code_list = [i for i in index_weight.keys()]
-            
 
-            # 计算前30天价格变化的均值            
+            # 计算前30天价格变化的均值   
             search_days = self.get_lastdays(date, dates, self.last_days)
             daily = self.stock_get_daily(search_days)
             index_delta_closeprice = {}
@@ -355,8 +354,6 @@ class fund_amount_and_price(base_amount_and_price):
                         index_delta_closeprice.setdefault(stock["ts_code"],[])
                         index_delta_closeprice[stock["ts_code"]].append(abs(stock["close"]-stock["pre_close"]))
             index_delta_closeprice_mean = {k:statistics.mean(v) for k,v in index_delta_closeprice.items()}
-
-
 
             # 计算资金流向前的系数
             days = search_days[-1:]
@@ -387,10 +384,10 @@ class fund_amount_and_price(base_amount_and_price):
                 price = self.pro.fund_daily(ts_code=fund_code,trade_date=date).to_dict(orient="records")[0]
             except:
                 print("当前时间，fund无价格",fund_code,date)
-                price = {"open":0,"close":0}
-
-            self.tensorboard.addScalarDict(tag=self.fund_code+"/"+self.dir_name+"/price",scalar_dict={"open":price["open"],"close":price["close"]}, index=num, timestamp=timestamp)
-            time.sleep(0.12)
+                price = {"open": 0.0,"close": 0.0}
+            print(price)
+            self.tensorboard.addScalar(tag=self.fund_code+"/"+self.dir_name+"/price",value=price["close"], index=num, timestamp=timestamp)
+            time.sleep(0.2)
 
 class Stock_amount_and_price(base_amount_and_price):
     def __init__(self):
