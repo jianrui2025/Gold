@@ -75,11 +75,8 @@ import io
 import pandas as pd
 pro = ts.pro_api('3085222731857622989')
 pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
-df = pro.etf_basic(ts_code="159590.SZ")
+df = pro.moneyflow(ts_code="603259.SH,600276.SH",trade_date="20251208")
 print(df)
-df = pro.index_weight(index_code="H30202.CSI")
-print(df)
-
 
 # QMT_kwargs = {}
 # QMT_kwargs["field_list"] = ["time","open","close","low","high","volume","preClose"]

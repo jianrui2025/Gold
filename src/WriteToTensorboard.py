@@ -273,7 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        # self.tensorboard.emptyTensorboard()
+        self.tensorboard.emptyTensorboard()
         self.stock_daily = {}
         self.stock_moneyflow = {}
         self.last_days = 30 # 计算前30天的均值
@@ -307,10 +307,12 @@ class fund_amount_and_price(base_amount_and_price):
                     if stock_code not in self.stock_daily[day["cal_date"]]:
                         not_stock_code_list.append(stock_code)
                 if not_stock_code_list:
-                    daily = self.pro.daily(ts_code=",".join(not_stock_code_list),trade_date=day["cal_date"]).to_dict(orient="records")
-                    time.sleep(0.2)
-                    # print(not_stock_code_list)
-                    # print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
+                    daily = []
+                    for ii in range(0,len(not_stock_code_list),999):
+                        tmp =  not_stock_code_list[ii:ii+999]
+                        tmp = self.pro.daily(ts_code=",".join(tmp),trade_date=day["cal_date"]).to_dict(orient="records")
+                        daily = tmp + daily
+                        time.sleep(0.2)
                     for stock_info in daily:
                         self.stock_daily[day["cal_date"]][stock_info["ts_code"]] = stock_info
         return [list(self.stock_daily[i["cal_date"]].values()) for i in search_days]
@@ -323,8 +325,12 @@ class fund_amount_and_price(base_amount_and_price):
                 if stock_code not in self.stock_moneyflow[trade_date]:
                     not_stock_code_list.append(stock_code)
             if not_stock_code_list:
-                moneyflow = self.pro.moneyflow(ts_code=",".join(not_stock_code_list),trade_date=trade_date).to_dict(orient="records")
-                time.sleep(0.2)
+                moneyflow = []
+                for ii in range(0,len(not_stock_code_list),999):
+                    tmp = not_stock_code_list[ii:ii+999]
+                    tmp = self.pro.moneyflow(ts_code=",".join(tmp),trade_date=trade_date).to_dict(orient="records")
+                    moneyflow = moneyflow + tmp
+                    time.sleep(0.2)
                 for stock_moneyflow in moneyflow:
                     self.stock_moneyflow[trade_date][stock_moneyflow["ts_code"]] = stock_moneyflow
         return list(self.stock_moneyflow[trade_date].values())
