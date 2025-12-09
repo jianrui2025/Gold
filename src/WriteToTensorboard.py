@@ -275,6 +275,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.tensorboard = Tensorboard(self.log_dir)
         self.tensorboard.emptyTensorboard()
         self.stock_daily = {}
+        self.stock_moneyflow = {}
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
 
@@ -303,10 +304,17 @@ class fund_amount_and_price(base_amount_and_price):
     def stock_get_daily(self,search_days):
         for day in search_days:
             if day["cal_date"] not in self.stock_daily:
-                print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
+                print("股票日线:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
                 daily = self.pro.daily(trade_date=day["cal_date"]).to_dict(orient="records")
                 self.stock_daily[day["cal_date"]] = daily
         return [self.stock_daily[i["cal_date"]] for i in search_days]
+    
+    def stock_get_moneyflow(self,trade_date):
+        if trade_date not in self.stock_moneyflow:
+            print("资金流向:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",trade_date)
+            moneyflow = self.pro.moneyflow(trade_date=trade_date).to_dict(orient="records")
+            self.stock_moneyflow[trade_date] = moneyflow
+        return self.stock_moneyflow[trade_date]
 
     def run(self,fund_code,start_date="20241004",end_date="20251204"):
         date = self.pro.trade_cal(exchange='SSE', start_date=start_date, end_date=end_date)
@@ -373,7 +381,7 @@ class fund_amount_and_price(base_amount_and_price):
                 net_mf_amount_a_year = date2net_mf_amount_a_year[pretrade_date]
             else:
                 net_mf_amount_a_year = 0
-            tmp = self.pro.moneyflow(trade_date=date).to_dict(orient="records")
+            tmp = self.stock_get_moneyflow(trade_date=date)
             for stock in tmp:
                 if stock["ts_code"] in stock_code_list:
                     net_mf_amount_a_year = net_mf_amount_a_year + stock["net_mf_amount"]*index_param[stock["ts_code"]]
