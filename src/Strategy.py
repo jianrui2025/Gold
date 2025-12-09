@@ -16,6 +16,7 @@ import io
 import statistics
 import multiprocessing as mp
 import copy
+from tqdm import tqdm
 
 import tushare as ts
 ts.set_token("08aaec36d1fad0154592971c8fb64a472b8f3fe954dc33c8d0e87447")
@@ -1088,14 +1089,24 @@ class Strategy_price_linear_fit(StrategyBase):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.fund_list_path = "./conf/fund_info_with_index_weight_only.json"
         self.last_daies = 20
-        self.write = fund_amount_and_price()
+        self.writer = fund_amount_and_price()
         self.hit_fund_code = []
 
 
     def read_fund_list(self):
         with open(self.fund_list_path,"r") as f:
             fund_list = [json.loads(i.strip()) for i in f]
-        self.fund_list = [i for i in fund_list if "index_weight" in i and (i["index_weight"][0]["con_code"].endswith("SH") or i["index_weight"][0]["con_code"].endswith("SZ"))]
+        self.fund_list = [i for i in fund_list if "index_weight" in i ]
+        # 排除掉包含非a股的指数
+        tmp = []
+        for i in self.fund_list:
+            mark = True
+            for j in i["index_weight"]:
+                if not (j["con_code"].endswith("SH") or j["con_code"].endswith("SZ") or j["con_code"].endswith("BJ")):
+                    mark = False
+            if mark:
+                tmp.append(i)
+        self.fund_list = tmp
 
     def get_last_daies(self):
         current_date = self.getCurrentDate()
@@ -1154,20 +1165,22 @@ class Strategy_price_linear_fit(StrategyBase):
 
 
     def after_strategy(self):
-        time.sleep(3*60*60)
+        # time.sleep(3*60*60)
         self.read_fund_list()
         last_daies = self.get_last_daies()
         hit_fund_code = []
-        for fund in self.fund_list:
+        for fund in tqdm(self.fund_list):
             price = self.pro.fund_daily(ts_code=fund["ts_code"],start_date=last_daies[-1],end_date=last_daies[0]).to_dict(orient="records")
             time.sleep(0.12)
             high,high_index,low,low_index = self.divide_high_and_low(price=price)
             high_a, high_b = self.linear_fit(high_index,high)
             low_a, low_b = self.linear_fit(low_index,low)
             if high_a > 0 and low_a > 0:
-                self.write.run(fund["ts_code"],end_date=last_daies[0])
-                # self.write.run(fund["ts_code"],end_date="20251208")
                 hit_fund_code.append(fund["ts_code"])
+        # 写入
+        if hit_fund_code:
+            self.writer.write(hit_fund_code,end_date=last_daies[0])
+
         info = {}
         tmp = [i for i in hit_fund_code if i not in self.hit_fund_code]
         self.hit_fund_code = self.hit_fund_code + tmp

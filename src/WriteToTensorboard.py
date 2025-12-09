@@ -279,42 +279,78 @@ class fund_amount_and_price(base_amount_and_price):
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
 
-    def search_CondexAndWeight(self,date,index_code):
-        def get_CondexAndWeight(index_code):
+    def get_CondexAndWeight(self,index_code):
             df = self.pro.index_weight(index_code=index_code)
-            self.index_weight = df.to_dict(orient="records")
-            for i in self.index_weight:
+            index_weight = df.to_dict(orient="records")
+            for i in index_weight:
                 i["trade_date"] = int(i["trade_date"])
-            return True
+            return index_weight
         
-        mark = False
-        if not mark:
-            mark = get_CondexAndWeight(index_code)
-        
+
+    def search_CondexAndWeight(self,date,index_weight):        
         date = int(date)
         last_date = 0
-        for i in self.index_weight:
+        for i in index_weight:
             if date < i["trade_date"]: 
                 pass
             elif date - i["trade_date"] < date - last_date:
                 last_date = i["trade_date"]
                 
-        return [i for i in self.index_weight if i["trade_date"] == last_date]
+        return [i for i in index_weight if i["trade_date"] == last_date]
 
-    def stock_get_daily(self,search_days):
+    def stock_get_daily(self,search_days, stock_code_list):
         for day in search_days:
             if day["cal_date"] not in self.stock_daily:
-                # print("股票日线:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
-                daily = self.pro.daily(trade_date=day["cal_date"]).to_dict(orient="records")
-                self.stock_daily[day["cal_date"]] = daily
-        return [self.stock_daily[i["cal_date"]] for i in search_days]
+                self.stock_daily.setdefault(day["cal_date"],{})
+                not_stock_code_list = []
+                for stock_code in stock_code_list:
+                    if stock_code not in self.stock_daily[day["cal_date"]]:
+                        not_stock_code_list.append(stock_code)
+                if not_stock_code_list:
+                    daily = self.pro.daily(ts_code=",".join(not_stock_code_list),trade_date=day["cal_date"]).to_dict(orient="records")
+                    time.sleep(0.2)
+                    # print(not_stock_code_list)
+                    # print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
+                    for stock_info in daily:
+                        self.stock_daily[day["cal_date"]][stock_info["ts_code"]] = stock_info
+        return [list(self.stock_daily[i["cal_date"]].values()) for i in search_days]
     
-    def stock_get_moneyflow(self,trade_date):
+    def stock_get_moneyflow(self,trade_date, stock_code_list):
         if trade_date not in self.stock_moneyflow:
-            # print("资金流向:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",trade_date)
-            moneyflow = self.pro.moneyflow(trade_date=trade_date).to_dict(orient="records")
-            self.stock_moneyflow[trade_date] = moneyflow
-        return self.stock_moneyflow[trade_date]
+            self.stock_moneyflow[trade_date] = {}
+            not_stock_code_list = []
+            for stock_code in stock_code_list:
+                if stock_code not in self.stock_moneyflow[trade_date]:
+                    not_stock_code_list.append(stock_code)
+            if not_stock_code_list:
+                moneyflow = self.pro.moneyflow(ts_code=",".join(not_stock_code_list),trade_date=trade_date).to_dict(orient="records")
+                time.sleep(0.2)
+                for stock_moneyflow in moneyflow:
+                    self.stock_moneyflow[trade_date][stock_moneyflow["ts_code"]] = stock_moneyflow
+        return list(self.stock_moneyflow[trade_date].values())
+
+
+    def write(self,hit_fund_code,start_date="20241004",end_date="20251208"):
+        fund_code_info = []
+        for i in hit_fund_code:
+            fund_info = self.pro.etf_basic(ts_code=i)
+            time.sleep(0.12)
+            fund_info = fund_info.to_dict(orient="records")[0]
+            fund_code_info.append(fund_info)
+        self.fund_code_info = {i["ts_code"]:i for i in fund_code_info}
+        index_code = [i["index_code"] for i in self.fund_code_info.values()]
+        self.index_weight_all = {}
+        for i in index_code:
+            self.index_weight_all[i] = self.get_CondexAndWeight(i)
+            time.sleep(0.12)
+        all_stock_code_list = set()
+        for index,weight in self.index_weight_all.items():
+            for we in weight:
+                all_stock_code_list.add(we["con_code"])
+        self.all_stock_code_list = list(all_stock_code_list)
+
+        for fund_code in hit_fund_code:
+            self.run(fund_code, start_date, end_date)
 
     def run(self,fund_code,start_date="20241004",end_date="20251204"):
         date = self.pro.trade_cal(exchange='SSE', start_date=start_date, end_date=end_date)
@@ -325,9 +361,9 @@ class fund_amount_and_price(base_amount_and_price):
         self.fund_code = fund_code
 
         # 获取etf基本信息
-        fund_code_info = self.pro.etf_basic(ts_code=fund_code)
-        fund_code_info = fund_code_info.to_dict(orient="records")[0]
+        fund_code_info = self.fund_code_info[fund_code]
         index_code = fund_code_info["index_code"]
+        index_weight_all = self.index_weight_all[index_code]
 
         # 查询已经写入tensorboard的信息。
         dete2step,date2net_mf_amount_a_year = self.tensorboard.search_log_dir(self.log_dir,fund_code,"net_mf_amount_a_year")
@@ -349,13 +385,13 @@ class fund_amount_and_price(base_amount_and_price):
                 dete2step[date] = num
 
             # 查询当时的成分和权重，资金流向
-            index_weight = self.search_CondexAndWeight(date,index_code)
+            index_weight = self.search_CondexAndWeight(date,index_weight_all)
             index_weight = {i["con_code"]:i["weight"] for i in index_weight}
             stock_code_list = [i for i in index_weight.keys()]
 
             # 计算前30天价格变化的均值   
             search_days = self.get_lastdays(date, dates, self.last_days)
-            daily = self.stock_get_daily(search_days)
+            daily = self.stock_get_daily(search_days, self.all_stock_code_list)
             index_delta_closeprice = {}
             for stock_list in daily:
                 for stock in stock_list:
@@ -366,7 +402,7 @@ class fund_amount_and_price(base_amount_and_price):
 
             # 计算资金流向前的系数
             days = search_days[-1:]
-            daily = self.stock_get_daily(days)[0]
+            daily = self.stock_get_daily(days, self.all_stock_code_list)[0]
             daily = {i["ts_code"]:i for i in daily}
             index_param = {}
             for key in index_weight.keys():
@@ -381,7 +417,7 @@ class fund_amount_and_price(base_amount_and_price):
                 net_mf_amount_a_year = date2net_mf_amount_a_year[pretrade_date]
             else:
                 net_mf_amount_a_year = 0
-            tmp = self.stock_get_moneyflow(trade_date=date)
+            tmp = self.stock_get_moneyflow(trade_date=date,stock_code_list=stock_code_list)
             for stock in tmp:
                 if stock["ts_code"] in stock_code_list:
                     net_mf_amount_a_year = net_mf_amount_a_year + stock["net_mf_amount"]*index_param[stock["ts_code"]]
