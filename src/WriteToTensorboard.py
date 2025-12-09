@@ -303,6 +303,7 @@ class fund_amount_and_price(base_amount_and_price):
     def stock_get_daily(self,search_days):
         for day in search_days:
             if day["cal_date"] not in self.stock_daily:
+                print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
                 daily = self.pro.daily(trade_date=day["cal_date"]).to_dict(orient="records")
                 self.stock_daily[day["cal_date"]] = daily
         return [self.stock_daily[i["cal_date"]] for i in search_days]
