@@ -1154,7 +1154,7 @@ class Strategy_price_linear_fit(StrategyBase):
 
 
     def after_strategy(self):
-        #time.sleep(3*60*60)
+        time.sleep(3*60*60)
         self.read_fund_list()
         last_daies = self.get_last_daies()
         hit_fund_code = []
@@ -1165,8 +1165,8 @@ class Strategy_price_linear_fit(StrategyBase):
             high_a, high_b = self.linear_fit(high_index,high)
             low_a, low_b = self.linear_fit(low_index,low)
             if high_a > 0 and low_a > 0:
-                # self.write.run(fund["ts_code"],end_date=last_daies[0])
-                self.write.run(fund["ts_code"],end_date="20251208")
+                self.write.run(fund["ts_code"],end_date=last_daies[0])
+                # self.write.run(fund["ts_code"],end_date="20251208")
                 hit_fund_code.append(fund["ts_code"])
         info = {}
         tmp = [i for i in hit_fund_code if i not in self.hit_fund_code]

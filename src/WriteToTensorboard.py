@@ -394,7 +394,6 @@ class fund_amount_and_price(base_amount_and_price):
             except:
                 print("当前时间，fund无价格",fund_code,date)
                 price = {"open": 0.0,"close": 0.0}
-            print(price)
             self.tensorboard.addScalar(tag=self.fund_code+"/"+self.dir_name+"/price",value=price["close"], index=num, timestamp=timestamp)
             time.sleep(0.2)
 
