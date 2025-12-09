@@ -273,7 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        self.tensorboard.emptyTensorboard()
+        # self.tensorboard.emptyTensorboard()
         self.stock_daily = {}
         self.stock_moneyflow = {}
         self.last_days = 30 # 计算前30天的均值
@@ -304,14 +304,14 @@ class fund_amount_and_price(base_amount_and_price):
     def stock_get_daily(self,search_days):
         for day in search_days:
             if day["cal_date"] not in self.stock_daily:
-                print("股票日线:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
+                # print("股票日线:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",day["cal_date"])
                 daily = self.pro.daily(trade_date=day["cal_date"]).to_dict(orient="records")
                 self.stock_daily[day["cal_date"]] = daily
         return [self.stock_daily[i["cal_date"]] for i in search_days]
     
     def stock_get_moneyflow(self,trade_date):
         if trade_date not in self.stock_moneyflow:
-            print("资金流向:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",trade_date)
+            # print("资金流向:",datetime.now().strftime("%Y-%m-%d %H:%M:%S")," ",trade_date)
             moneyflow = self.pro.moneyflow(trade_date=trade_date).to_dict(orient="records")
             self.stock_moneyflow[trade_date] = moneyflow
         return self.stock_moneyflow[trade_date]
