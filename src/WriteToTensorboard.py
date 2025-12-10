@@ -273,9 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        self.tensorboard.emptyTensorboard()
-        self.stock_daily = {}
-        self.stock_moneyflow = {}
+        # self.tensorboard.emptyTensorboard()
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
 
@@ -308,8 +306,8 @@ class fund_amount_and_price(base_amount_and_price):
                         not_stock_code_list.append(stock_code)
                 if not_stock_code_list:
                     daily = []
-                    for ii in range(0,len(not_stock_code_list),999):
-                        tmp =  not_stock_code_list[ii:ii+999]
+                    for ii in range(0,len(not_stock_code_list),500):
+                        tmp =  not_stock_code_list[ii:ii+500]
                         tmp = self.pro.daily(ts_code=",".join(tmp),trade_date=day["cal_date"]).to_dict(orient="records")
                         daily = tmp + daily
                         time.sleep(0.2)
@@ -326,8 +324,8 @@ class fund_amount_and_price(base_amount_and_price):
                     not_stock_code_list.append(stock_code)
             if not_stock_code_list:
                 moneyflow = []
-                for ii in range(0,len(not_stock_code_list),999):
-                    tmp = not_stock_code_list[ii:ii+999]
+                for ii in range(0,len(not_stock_code_list),500):
+                    tmp = not_stock_code_list[ii:ii+500]
                     tmp = self.pro.moneyflow(ts_code=",".join(tmp),trade_date=trade_date).to_dict(orient="records")
                     moneyflow = moneyflow + tmp
                     time.sleep(0.2)
@@ -348,12 +346,16 @@ class fund_amount_and_price(base_amount_and_price):
         self.index_weight_all = {}
         for i in index_code:
             self.index_weight_all[i] = self.get_CondexAndWeight(i)
-            time.sleep(0.12)
+            time.sleep(0.2)
         all_stock_code_list = set()
         for index,weight in self.index_weight_all.items():
             for we in weight:
                 all_stock_code_list.add(we["con_code"])
         self.all_stock_code_list = list(all_stock_code_list)
+
+        # 数据存储
+        self.stock_daily = {}
+        self.stock_moneyflow = {}
 
         for fund_code in hit_fund_code:
             self.run(fund_code, start_date, end_date)
@@ -379,6 +381,7 @@ class fund_amount_and_price(base_amount_and_price):
             pretrade_date = date_info["pretrade_date"]
             timestamp = datetime.strptime(date, '%Y%m%d').timestamp()
 
+            # 
             if date in date2net_mf_amount_a_year:
                 continue
 
@@ -423,10 +426,16 @@ class fund_amount_and_price(base_amount_and_price):
                 net_mf_amount_a_year = date2net_mf_amount_a_year[pretrade_date]
             else:
                 net_mf_amount_a_year = 0
-            tmp = self.stock_get_moneyflow(trade_date=date,stock_code_list=stock_code_list)
+            tmp = self.stock_get_moneyflow(trade_date=date,stock_code_list=self.all_stock_code_list)
+            statt = 0
             for stock in tmp:
                 if stock["ts_code"] in stock_code_list:
+                    statt += 1
                     net_mf_amount_a_year = net_mf_amount_a_year + stock["net_mf_amount"]*index_param[stock["ts_code"]]
+
+            if len(stock_code_list) != statt:
+                print(fund_code,date,"需求数量:",str(len(stock_code_list)),"实际数量:",str(statt))
+                
             self.tensorboard.addScalar(tag=self.fund_code+"/"+self.dir_name+"/net_mf_amount_a_year",value=net_mf_amount_a_year,index=num,timestamp=timestamp)
             date2net_mf_amount_a_year[date] = net_mf_amount_a_year
 
@@ -475,7 +484,9 @@ class Stock_amount_and_price(base_amount_and_price):
             # 获取资金流向数据
             tmp = self.pro.moneyflow(ts_code=self.stock_code,trade_date=date).to_dict(orient="records")[0]
             net_mf_amount =  tmp["net_mf_amount"]
+            print("一天",net_mf_amount)
             mf_amount_a_year = mf_amount_a_year + net_mf_amount
+            print("累积",mf_amount_a_year)
             self.tensorboard.addScalar(tag=self.stock_code+"/mf_amount_a_year",value=mf_amount_a_year,index=num,timestamp=timestamp)
 
             # 获取成交量 价格
@@ -497,7 +508,7 @@ class Stock_amount_and_price(base_amount_and_price):
 
 if __name__ == "__main__":
     writer = fund_amount_and_price()
-    writer.run("515120.SH",end_date="20251208")
+    writer.write(hit_fund_code=["515120.SH"], end_date="20251205")
 
     # writer = Stock_amount_and_price()
-    # writer.run("603259.SH", end_date="20251205")
+    # writer.run("600879.SH", end_date="20251205")

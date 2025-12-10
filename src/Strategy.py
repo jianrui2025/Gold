@@ -1165,7 +1165,7 @@ class Strategy_price_linear_fit(StrategyBase):
 
 
     def after_strategy(self):
-        # time.sleep(3*60*60)
+        time.sleep(3*60*60)
         self.read_fund_list()
         last_daies = self.get_last_daies()
         hit_fund_code = []
