@@ -431,7 +431,7 @@ class Strategy_PointPrice(StrategyBase):
         self.runStrategyInterval = 15
         super().__init__(self.runStrategyInterval)
         self.fund_code_list = ["518880","588000"]
-        self.PointPrice_path = "/home/jianrui/Gold/conf/wornning.json"
+        self.PointPrice_path = "./conf/wornning.json"
 
     def before_strategy(self):
         self.readPointPrice()
@@ -556,8 +556,7 @@ class Strategy_PriceReBound(StrategyBase):
     def __init__(self):
         self.runStrategyInterval = 15
         super().__init__(self.runStrategyInterval)
-        self.fund_code_list = ["518880"]
-        self.PointPrice_path = "C:\\Users\\Administrator\\Desktop\\Gold\\conf\\wornning_ReBound.json"
+        self.fund_code_list_path = "./conf/wornning.json"
 
     def before_strategy(self):
         self.readPointPrice()
@@ -567,10 +566,10 @@ class Strategy_PriceReBound(StrategyBase):
     def readPointPrice(self):
         # 读取报警信息
         self.PointPrice = {}
-        with open(self.PointPrice_path,"r") as f:
+        with open(self.fund_code_list_path,"r") as f:
             for i in f:
                 i = json.loads(i.strip())
-                if i["status"] == "开启":
+                if i["status"] == "开启" and i["type"] == "价格反转检测":
                     self.PointPrice[i["id"]] = i
         log.info("读取报警条件完成!")
 
@@ -661,7 +660,7 @@ class Strategy_PriceReBound(StrategyBase):
         with open(self.PointPrice_path,"r") as f:
             for i in f:
                 i = json.loads(i.strip())
-                if i["id"] not in self.PointPrice and i["status"]=="开启":
+                if i["id"] not in self.PointPrice and i["status"]=="开启" and i["type"] == "价格反转检测":
                     self.PointPrice[i["id"]] = i
 
     def writePointPrice(self):
@@ -1165,7 +1164,7 @@ class Strategy_price_linear_fit(StrategyBase):
 
 
     def after_strategy(self):
-        time.sleep(3*60*60)
+        # time.sleep(3*60*60)
         self.read_fund_list()
         last_daies = self.get_last_daies()
         hit_fund_code = []
@@ -1178,8 +1177,10 @@ class Strategy_price_linear_fit(StrategyBase):
             if high_a > 0 and low_a > 0:
                 hit_fund_code.append(fund["ts_code"])
         # 写入
+        hit_fund_code = hit_fund_code[:4]  
         if hit_fund_code:
-            self.writer.write(hit_fund_code,end_date=last_daies[0])
+            # self.writer.write(hit_fund_code,end_date=last_daies[0])
+            self.writer.write(hit_fund_code,end_date="20251210")            
 
         info = {}
         tmp = [i for i in hit_fund_code if i not in self.hit_fund_code]
@@ -1207,8 +1208,8 @@ if __name__ == "__main__":
     # strategy = Strategy_TaoLi()
     # strategy.run()
 
-    strategy = Strategy_price_linear_fit()
-    strategy.after_strategy()
+    # strategy = Strategy_price_linear_fit()
+    # strategy.after_strategy()
 
             
 

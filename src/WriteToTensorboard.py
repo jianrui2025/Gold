@@ -273,7 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        # self.tensorboard.emptyTensorboard()
+        self.tensorboard.emptyTensorboard()
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
 
@@ -356,9 +356,11 @@ class fund_amount_and_price(base_amount_and_price):
         # 数据存储
         self.stock_daily = {}
         self.stock_moneyflow = {}
-
         for fund_code in hit_fund_code:
             self.run(fund_code, start_date, end_date)
+        # 数据存储
+        self.stock_daily = {}
+        self.stock_moneyflow = {}
 
     def run(self,fund_code,start_date="20241004",end_date="20251204"):
         date = self.pro.trade_cal(exchange='SSE', start_date=start_date, end_date=end_date)
