@@ -1208,8 +1208,8 @@ if __name__ == "__main__":
     # strategy = Strategy_TaoLi()
     # strategy.run()
 
-    # strategy = Strategy_price_linear_fit()
-    # strategy.after_strategy()
+    strategy = Strategy_price_linear_fit()
+    strategy.after_strategy()
 
             
 
