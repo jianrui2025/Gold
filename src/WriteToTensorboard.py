@@ -273,7 +273,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
         self.log_dir = "./tensorboard_log_fund/"
         self.tensorboard = Tensorboard(self.log_dir)
-        self.tensorboard.emptyTensorboard()
+        # self.tensorboard.emptyTensorboard()
         self.last_days = 30 # 计算前30天的均值
         self.dir_name = "间接使用权重"
 
