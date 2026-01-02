@@ -176,11 +176,16 @@ def selece_index_weight_for_fund(fund_info_with_index_weight_path,fund_info_with
             index_dict.setdefault(i["index_code"],[])
             index_dict[i["index_code"]].append(i)
     for index,value in index_dict.items():
-        print(index)
+        # print(index)
         max_amount = 0
         fund = ""
         for v in value:
-            df = pro.fund_daily(ts_code=v["ts_code"],trade_date=trade_date).to_dict(orient="records")[0]
+            df = pro.fund_daily(ts_code=v["ts_code"],trade_date=trade_date).to_dict(orient="records")
+            if df:
+                df = df[0]
+            else:
+                print(index,"没有查询到信息！")
+                continue
             time.sleep(0.12)
             if max_amount < df["amount"]:
                 max_amount = df["amount"]
@@ -195,6 +200,7 @@ if __name__ == "__main__":
     pro = ts.pro_api('3085222731857622989')
     pro._DataApi__http_url = "http://47.109.97.125:8080/tushare"
 
+    trade_date = "20251231"
     start_stage = 4
     end_stage = 4
 
@@ -219,7 +225,6 @@ if __name__ == "__main__":
 
     # 将etf按照对应的标的进行归类，并从中挑选成交量最大的基金
     fund_info_with_index_weight_only_path = "../conf/fund_info_with_index_weight_only.json"
-    trade_date = "20251208"
     if start_stage <= 4 and end_stage >= 4:
         selece_index_weight_for_fund(fund_info_with_index_weight_path, fund_info_with_index_weight_only_path, trade_date)
         print(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),":第四步完成")
