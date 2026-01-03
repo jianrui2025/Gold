@@ -338,7 +338,7 @@ class fund_amount_and_price(base_amount_and_price):
         fund_code_info = []
         for i in hit_fund_code:
             fund_info = self.pro.etf_basic(ts_code=i)
-            time.sleep(0.12)
+            time.sleep(0.4)
             fund_info = fund_info.to_dict(orient="records")[0]
             fund_code_info.append(fund_info)
         self.fund_code_info = {i["ts_code"]:i for i in fund_code_info}
@@ -362,7 +362,7 @@ class fund_amount_and_price(base_amount_and_price):
         self.stock_daily = {}
         self.stock_moneyflow = {}
 
-    def run(self,fund_code,start_date="20241004",end_date="20251204"):
+    def run(self,fund_code,start_date="20241031",end_date="20251231"):
         date = self.pro.trade_cal(exchange='SSE', start_date=start_date, end_date=end_date)
         date = date.to_dict(orient="records")
         dates = [i for i in date if i["is_open"]==1]
